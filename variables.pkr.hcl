@@ -11,48 +11,40 @@ variable "proxmox_api_token_secret" {
   sensitive = true
 }
 
-variable "node" {
+variable "proxmox_node" {
   default = "pve"
 }
 
-variable "template_description" {
-  default = "Ubuntu Jammy"
-}
-
-variable "vm_id" {
-  default = 900
-}
-
-variable "vm_name_prefix" {
-  default = "ubuntu-22.04.04"
-}
-
 variable "iso_base_url" {
-  default = "https://releases.ubuntu.com/jammy"
+  default = "https://get.debian.org/images/release/current/amd64/iso-cd"
 }
 
 variable "iso_name" {
-  default = "ubuntu-22.04.4-live-server-amd64.iso"
+  default = "debian-12.10.0-amd64-netinst.iso"
+}
+
+variable "iso_storage_pool" {
+  default = "local"
 }
 
 variable "scsi_controller" {
-  default = "virtio-scsi-single"
+  default = "virtio-scsi-pci"
 }
 
 variable "cpu_type" {
-  default = "x86-64-v2-AES"
+  default = "host"
 }
 
 variable "cores" {
-  default = 1
+  default = 2
 }
 
 variable "memory" {
-  default = 2048
+  default = 4096
 }
 
 variable "disk_storage_pool" {
-  default = "vm-disk-2"
+  default = "local-zfs"
 }
 
 variable "network_adapter_bridge" {
@@ -63,7 +55,5 @@ variable "builder_ssh_creds" {
   default = {
     username = "packer"
     password = "packer"
-    # openssl passwd -6 -stdin <<< packer
-    hashed_passwd = "$6$42m.MyMusfbLi5R9$pY1.FG8pBr/gsfo/r0NGa2RTL9DBgmjncLghQNNyr6ms99hhoubWd363vNwzSRvRZHXuVY795BHMX/R.a7wsn0"
   }
 }
