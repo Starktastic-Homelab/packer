@@ -32,7 +32,7 @@ jobs:
       - run: |
           echo 'MANIFEST<<EOF' >> $GITHUB_ENV
           cat packer-manifest.json >> $GITHUB_ENV
-          echo 'EOF' >> $GITHUB_ENV
+          echo -e '\nEOF' >> $GITHUB_ENV
 
       - name: Create release
         id: release
