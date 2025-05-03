@@ -28,3 +28,12 @@ jobs:
           PKR_VAR_proxmox_api_token_id: ${{ secrets.PROXMOX_API_TOKEN_ID }}
           PKR_VAR_proxmox_api_token_secret: ${{ secrets.PROXMOX_API_TOKEN_SECRET }}
         run: packer build -force .
+
+      - name: Create release
+        id: release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ fromJson(steps.release.outputs.files)['builds'][0]['custom_data']['vm_name'] }}
+          name: Packer Build ${{ github.run_number }}
+          files: packer_manifest.json
+          make_latest: true
