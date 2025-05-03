@@ -27,4 +27,4 @@ jobs:
           PKR_VAR_proxmox_api_url: ${{ secrets.PROXMOX_API_URL }}
           PKR_VAR_proxmox_api_token_id: ${{ secrets.PROXMOX_API_TOKEN_ID }}
           PKR_VAR_proxmox_api_token_secret: ${{ secrets.PROXMOX_API_TOKEN_SECRET }}
-        run: packer build -f .
+        run: packer build -force .
