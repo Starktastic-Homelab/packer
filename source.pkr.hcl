@@ -11,7 +11,7 @@ source "proxmox-iso" "debian-12" {
   os                      = "l26"
   scsi_controller         = var.scsi_controller
   cpu_type                = var.cpu_type
-  cores                   = var.cores
+  cores                = var.cores
   memory                  = var.memory
   qemu_agent              = true
   cloud_init              = true
@@ -21,7 +21,7 @@ source "proxmox-iso" "debian-12" {
   ssh_password = var.builder_ssh_creds.password
   ssh_timeout  = "10m"
 
-  boot_command   = ["<esc><wait>auto url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/preseed.cfg<enter>"]
+  boot_command = ["<esc><wait>auto url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/preseed.cfg<enter>"]
   http_content = {
     "/preseed.cfg" = templatefile(
       "http/preseed.cfg.tmpl",

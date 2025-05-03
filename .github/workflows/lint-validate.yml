@@ -1,0 +1,50 @@
+name: Lint and Validate Packer Template
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  packer-lint-check:
+    name: Packer lint & validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Packer
+        uses: hashicorp/setup-packer@v2
+        with:
+          version: latest
+
+      - name: Format Packer files
+        id: fmt
+        run: |
+          CHANGED_FILES=$(packer fmt -recursive .)
+          echo "changed_files<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGED_FILES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Commit & push formatting changes
+        if: steps.fmt.outputs.changed_files != ''
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+          git add .
+          git commit -m "style: packer fmt"
+          git push -f origin HEAD:"${{ github.head_ref || github.ref_name }}"
+
+      - name: Validate Packer template
+        env:
+          # Make sure that validate does not fail due to unset variables
+          PKR_VAR_proxmox_api_url: 'https://proxmox.example.com:8006/api2/json'
+          PKR_VAR_proxmox_api_token_id: 'id'
+          PKR_VAR_proxmox_api_token_secret: 'secret'
+        run: |
+          packer init -force -upgrade .
+          packer validate .
