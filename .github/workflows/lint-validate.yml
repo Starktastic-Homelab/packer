@@ -5,6 +5,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+
 jobs:
   packer-lint-check:
     name: Packer Lint & Validate
@@ -28,13 +31,7 @@ jobs:
           if [ -n "$(git status --porcelain)" ]; then
             git add .
             git commit -m "style: packer fmt"
-            if [ -z "${{ secrets.PAT_PUSH }}" ]; then
-              echo "❌ PAT_PUSH not available"
-            else
-              echo "✅ PAT_PUSH available"
-            fi
-            git remote set-url origin https://x-access-token:${{ secrets.PAT_PUSH }}@github.com/${{ github.repository }}
-            git push origin HEAD:"${{ github.head_ref || github.ref_name }}"
+            git push
           else
             echo "No formatting changes to commit."
           fi
