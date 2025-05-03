@@ -30,7 +30,7 @@ jobs:
         run: packer build -force .
 
       - run: |
-          echo "MANIFEST=$(cat packer_manifest.json)" >> $GITHUB_ENV
+          echo "MANIFEST=$(cat packer-manifest.json)" >> $GITHUB_ENV
 
       - name: Create release
         id: release
@@ -38,5 +38,5 @@ jobs:
         with:
           tag_name: '${{ fromJson(env.MANIFEST).builds[0].custom_data.vm_name }}'
           name: Packer Build ${{ github.run_number }}
-          files: packer_manifest.json
+          files: packer-manifest.json
           make_latest: true
