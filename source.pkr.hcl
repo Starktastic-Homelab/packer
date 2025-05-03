@@ -11,7 +11,7 @@ source "proxmox-iso" "debian-12" {
   os                      = "l26"
   scsi_controller         = var.scsi_controller
   cpu_type                = var.cpu_type
-  cores                = var.cores
+  cores                   = var.cores
   memory                  = var.memory
   qemu_agent              = true
   cloud_init              = true
