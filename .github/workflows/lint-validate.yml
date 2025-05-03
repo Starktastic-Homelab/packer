@@ -22,19 +22,22 @@ jobs:
           version: latest
 
       - name: Format Packer files
+        id: fmt
         run: |
-          packer fmt -recursive .
+          CHANGED_FILES=$(packer fmt -recursive .)
+          echo "changed_files<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGED_FILES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
+      - name: Commit formatting changes
+        if: steps.fmt.outputs.changed_files != ''
+        run: |
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
 
-          if [ -n "$(git status --porcelain)" ]; then
-            git add .
-            git commit -m "style: packer fmt"
-            git push -f origin HEAD:"${{ github.head_ref || github.ref_name }}"
-          else
-            echo "No formatting changes to commit."
-          fi
+          git add .
+          git commit -m "style: packer fmt"
+          git push -f origin HEAD:"${{ github.head_ref || github.ref_name }}"
 
       - name: Validate Packer template
         env:
