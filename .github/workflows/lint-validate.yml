@@ -18,7 +18,9 @@ jobs:
         with:
           version: latest
 
-      - name: Format and validate Packer files
+      - name: Format Packer files
+        env:
+          PAT_PUSH: ${{ secrets.PAT_PUSH }}
         run: |
           packer fmt -recursive .
 
@@ -28,7 +30,7 @@ jobs:
           if [ -n "$(git status --porcelain)" ]; then
             git add .
             git commit -m "style: packer fmt"
-            git remote set-url origin https://x-access-token:${{ secrets.PAT_PUSH }}@github.com/${{ github.repository }}
+            git remote set-url origin https://x-access-token:$PAT_PUSH@github.com/${{ github.repository }}
             git push origin HEAD:"${{ github.head_ref || github.ref_name }}"
           else
             echo "No formatting changes to commit."
