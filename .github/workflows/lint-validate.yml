@@ -1,4 +1,4 @@
-name: Lint and Validate Packer Template
+name: Lint and Validate Packer template
 
 on:
   pull_request:

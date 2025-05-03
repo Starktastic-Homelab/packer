@@ -1,0 +1,30 @@
+name: Build Proxmox template
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  packer-build:
+    name: Packer build
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Packer
+        uses: hashicorp/setup-packer@v2
+        with:
+          version: latest
+
+      - name: Initialize Packer
+        run: packer init -force -upgrade .
+
+      - name: Build Proxmox template
+        env:
+          PKR_VAR_proxmox_api_url: ${{ secrets.PROXMOX_API_URL }}
+          PKR_VAR_proxmox_api_token_id: ${{ secrets.PROXMOX_API_TOKEN_ID }}
+          PKR_VAR_proxmox_api_token_secret: ${{ secrets.PROXMOX_API_TOKEN_SECRET }}
+        run: packer build -f .
