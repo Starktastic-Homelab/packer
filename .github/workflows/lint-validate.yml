@@ -16,7 +16,7 @@ jobs:
       - name: Install Packer
         uses: hashicorp/setup-packer@v2
         with:
-          packer_version: latest
+          version: latest
 
       - name: Format and validate Packer files
         run: |
@@ -28,7 +28,7 @@ jobs:
           if [ -n "$(git status --porcelain)" ]; then
             git add .
             git commit -m "style: packer fmt"
-            git push
+            git push origin "${{ github.ref_name }}"
           else
             echo "No formatting changes to commit."
           fi
