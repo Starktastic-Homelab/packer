@@ -1,0 +1,37 @@
+name: Lint and Validate Packer Template
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  packer-lint-check:
+    name: Packer Lint & Validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Packer
+        uses: hashicorp/setup-packer@v2
+        with:
+          packer_version: latest
+
+      - name: Format and validate Packer files
+        run: |
+          packer fmt -recursive .
+
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+          if [ -n "$(git status --porcelain)" ]; then
+            git add .
+            git commit -m "style: packer fmt"
+            git push
+          else
+            echo "No formatting changes to commit."
+          fi
+
+      - name: Validate Packer template
+        run: packer validate .
