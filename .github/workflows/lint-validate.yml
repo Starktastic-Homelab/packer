@@ -22,6 +22,9 @@ jobs:
         run: |
           packer fmt -recursive .
 
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
           if [ -n "$(git status --porcelain)" ]; then
             git add .
             git commit -m "style: packer fmt"
