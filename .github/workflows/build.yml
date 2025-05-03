@@ -30,7 +30,9 @@ jobs:
         run: packer build -force .
 
       - run: |
-          echo "MANIFEST=$(cat packer-manifest.json)" >> $GITHUB_ENV
+          echo 'MANIFEST<<EOF' >> $GITHUB_ENV
+          cat packer-manifest.json >> $GITHUB_ENV
+          echo 'EOF' >> $GITHUB_ENV
 
       - name: Create release
         id: release
