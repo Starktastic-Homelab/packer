@@ -39,9 +39,9 @@ jobs:
       - name: Validate Packer template
         env:
           # Make sure that validate does not fail due to unset variables
-          PKR_VAR_proxmox_api_url: ''
-          PKR_VAR_proxmox_api_token_id: ''
-          PKR_VAR_proxmox_api_token_secret: ''
+          PKR_VAR_proxmox_api_url: 'https://proxmox.example.com:8006/api2/json'
+          PKR_VAR_proxmox_api_token_id: 'id'
+          PKR_VAR_proxmox_api_token_secret: 'secret'
         run: |
           packer init -force -upgrade .
           packer validate .
