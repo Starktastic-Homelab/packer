@@ -109,9 +109,9 @@ At the end of the Packer build:
 
 ## 🧪 Tested With
 
-- Proxmox VE 8.1
-- Packer 1.9
-- Debian 12.5 ISO (netinst)
+- Proxmox VE 8.4.1
+- Packer 1.12
+- Debian 12.10.0 ISO (netinst)
 
 ---
 
