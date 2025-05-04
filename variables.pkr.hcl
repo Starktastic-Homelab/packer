@@ -64,15 +64,15 @@ variable "timezone" {
 
 variable "apt_mirror" {
   type = object({
-    protocol = string
-    country  = string
-    hostname = string
+    protocol  = string
+    country   = string
+    hostname  = string
     directory = string
   })
   default = {
-    protocol = "http"
-    country  = "manual"
-    hostname = "http.us.debian.org"
+    protocol  = "http"
+    country   = "manual"
+    hostname  = "http.us.debian.org"
     directory = "/debian"
   }
 }

@@ -26,12 +26,12 @@ source "proxmox-iso" "debian-12" {
     "/preseed.cfg" = templatefile(
       "http/preseed.cfg.tmpl",
       {
-        username = var.builder_creds.username,
-        password = var.builder_creds.password,
-        timezone = var.timezone
-        apt_mirror_protocol = var.apt_mirror.protocol
-        apt_mirror_country = var.apt_mirror.country
-        apt_mirror_hostname = var.apt_mirror.hostname
+        username             = var.builder_creds.username,
+        password             = var.builder_creds.password,
+        timezone             = var.timezone
+        apt_mirror_protocol  = var.apt_mirror.protocol
+        apt_mirror_country   = var.apt_mirror.country
+        apt_mirror_hostname  = var.apt_mirror.hostname
         apt_mirror_directory = var.apt_mirror.directory
       }
     )
