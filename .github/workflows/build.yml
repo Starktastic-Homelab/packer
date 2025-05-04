@@ -27,9 +27,17 @@ jobs:
 
       - name: Build Proxmox template
         env:
-          PKR_VAR_proxmox_api_url: ${{ secrets.PROXMOX_API_URL }}
+          PKR_VAR_proxmox_api_url: ${{ vars.PROXMOX_API_URL }}
           PKR_VAR_proxmox_api_token_id: ${{ secrets.PROXMOX_API_TOKEN_ID }}
           PKR_VAR_proxmox_api_token_secret: ${{ secrets.PROXMOX_API_TOKEN_SECRET }}
+          PKR_VAR_timezone: ${{ vars.TIMEZONE }}
+          PKR_VAR_apt_mirror: |
+            {
+              "protocol": "${{ vars.APT_MIRROR_PROTOCOL }}",
+              "country": "${{ vars.APT_MIRROR_COUNTRY }}",
+              "hostname": "${{ vars.APT_MIRROR_HOSTNAME }}",
+              "directory": "${{ vars.APT_MIRROR_DIRECTORY }}"
+            }
         run: packer build -force .
 
       - run: |

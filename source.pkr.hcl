@@ -17,8 +17,8 @@ source "proxmox-iso" "debian-12" {
   cloud_init              = true
   cloud_init_storage_pool = var.disk_storage_pool
 
-  ssh_username = var.builder_ssh_creds.username
-  ssh_password = var.builder_ssh_creds.password
+  ssh_username = var.builder_creds.username
+  ssh_password = var.builder_creds.password
   ssh_timeout  = "10m"
 
   boot_command = ["<esc><wait>auto url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/preseed.cfg<enter>"]
@@ -26,8 +26,13 @@ source "proxmox-iso" "debian-12" {
     "/preseed.cfg" = templatefile(
       "http/preseed.cfg.tmpl",
       {
-        username = var.builder_ssh_creds.username,
-        password = var.builder_ssh_creds.password
+        username = var.builder_creds.username,
+        password = var.builder_creds.password,
+        timezone = var.timezone
+        apt_mirror_protocol = var.apt_mirror.protocol
+        apt_mirror_country = var.apt_mirror.country
+        apt_mirror_hostname = var.apt_mirror.hostname
+        apt_mirror_directory = var.apt_mirror.directory
       }
     )
   }

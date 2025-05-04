@@ -51,9 +51,28 @@ variable "network_adapter_bridge" {
   default = "vmbr0"
 }
 
-variable "builder_ssh_creds" {
+variable "builder_creds" {
   default = {
     username = "packer"
     password = "packer"
+  }
+}
+
+variable "timezone" {
+  default = "US/Eastern"
+}
+
+variable "apt_mirror" {
+  type = object({
+    protocol = string
+    country  = string
+    hostname = string
+    directory = string
+  })
+  default = {
+    protocol = "http"
+    country  = "manual"
+    hostname = "http.us.debian.org"
+    directory = "/debian"
   }
 }
