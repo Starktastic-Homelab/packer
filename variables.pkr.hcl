@@ -36,11 +36,11 @@ variable "cpu_type" {
 }
 
 variable "cores" {
-  default = 2
+  default = 1
 }
 
 variable "memory" {
-  default = 4096
+  default = 1024
 }
 
 variable "disk_storage_pool" {
