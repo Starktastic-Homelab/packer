@@ -3,7 +3,7 @@ build {
 
   provisioner "shell" {
     expect_disconnect = true
-    execute_command   = "echo '${var.builder_ssh_creds.password}' | {{ .Vars }} sudo -S -E bash '{{ .Path }}'"
+    execute_command   = "echo '${var.builder_creds.password}' | {{ .Vars }} sudo -S -E bash '{{ .Path }}'"
     script            = "scripts/bootstrap.sh"
   }
 
@@ -14,16 +14,16 @@ build {
 
   provisioner "shell" {
     inline = [
-      "echo '${var.builder_ssh_creds.password}' | sudo -S cp -rf /tmp/cloud-init/* /etc/cloud/",
+      "echo '${var.builder_creds.password}' | sudo -S cp -rf /tmp/cloud-init/* /etc/cloud/",
       "rm -rf /tmp/cloud-init"
     ]
   }
 
   provisioner "shell" {
     skip_clean      = true
-    execute_command = "chmod +x {{ .Path }}; echo '${var.builder_ssh_creds.password}' | sudo -S env {{ .Vars }} {{ .Path }}; rm -f {{ .Path }}"
+    execute_command = "chmod +x {{ .Path }}; echo '${var.builder_creds.password}' | sudo -S env {{ .Vars }} {{ .Path }}; rm -f {{ .Path }}"
     env = {
-      BUILDER_USER = var.builder_ssh_creds.username
+      BUILDER_USER = var.builder_creds.username
     }
     script = "scripts/delete_builder_user.sh"
   }
