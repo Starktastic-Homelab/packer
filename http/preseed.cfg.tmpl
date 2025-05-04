@@ -102,10 +102,10 @@ d-i netcfg/wireless_wep string
 # Mirror protocol:
 # If you select ftp, the mirror/country string does not need to be set.
 # Default value for the mirror protocol: http.
-#d-i mirror/protocol string ftp
-d-i mirror/country string Israel
-d-i mirror/http/hostname string debian.interhost.co.il
-d-i mirror/http/directory string /debian
+d-i mirror/protocol string ${apt_mirror_protocol}
+d-i mirror/country string ${apt_mirror_country}
+d-i mirror/http/hostname string ${apt_mirror_hostname}
+d-i mirror/http/directory string ${apt_mirror_directory}
 d-i mirror/http/proxy string
 
 # Suite to install.
@@ -147,7 +147,7 @@ d-i clock-setup/utc boolean true
 
 # You may set this to any valid setting for $TZ; see the contents of
 # /usr/share/zoneinfo/ for valid values.
-d-i time/zone string Asia/Jerusalem
+d-i time/zone string ${timezone}
 
 # Controls whether to use NTP to set the clock during the install
 d-i clock-setup/ntp boolean true
