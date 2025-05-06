@@ -38,8 +38,8 @@ In your Proxmox UI:
 1. Go to **Datacenter → Permissions → API Tokens**
 2. Click **Add**:
    - **User**: `root@pam`
-   - **Token ID**: `packer`
-   - Enable **"Privilege Separation"**
+   - **Token ID**: `provisioner`
+   - Disable **"Privilege Separation"** (makes it possible to use with Terraform)
 3. Assign a role to the token under **Datacenter → Permissions** with the following privileges:
 
 ```text
@@ -67,7 +67,7 @@ Apply this role to path `/`.
 
 The role be created with the following command:
 ```bash
-pveum roleadd PackerBuilderRole -privs \
+pveum roleadd ProvisionerRole -privs \
   "Datastore.AllocateSpace,Datastore.AllocateTemplate,SDN.Use,Sys.Modify,\
 VM.Allocate,VM.Audit,VM.Clone,VM.Config.CDROM,VM.Config.CPU,VM.Config.Cloudinit,\
 VM.Config.Disk,VM.Config.HWType,VM.Config.Memory,VM.Config.Network,VM.Config.Options,\
