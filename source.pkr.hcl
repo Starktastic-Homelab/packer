@@ -5,7 +5,7 @@ source "proxmox-iso" "debian-12" {
   node                     = var.proxmox_node
   insecure_skip_tls_verify = true
 
-  vm_id                   = 900
+  vm_id                   = var.vm_id
   vm_name                 = local.vm_name
   template_description    = "Debian 12 Template - ${formatdate("YYYY-MM-DD.hh:mm:ss.ZZZ", timestamp())}"
   os                      = "l26"

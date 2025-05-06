@@ -15,6 +15,10 @@ variable "proxmox_node" {
   default = "pve"
 }
 
+variable "vm_id" {
+  default = 900
+}
+
 variable "iso_base_url" {
   default = "https://get.debian.org/images/release/current/amd64/iso-cd"
 }
