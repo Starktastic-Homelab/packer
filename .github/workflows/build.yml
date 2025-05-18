@@ -14,6 +14,8 @@ jobs:
   packer-build:
     name: Packer build
     runs-on: self-hosted
+    outputs:
+      manifest: ${{ steps.get-manifest.outputs.manifest }}
 
     steps:
       - name: Checkout repository
@@ -42,26 +44,34 @@ jobs:
             }
         run: packer build -force .
 
-      - run: |
-          echo 'MANIFEST<<EOF' >> $GITHUB_ENV
-          cat packer-manifest.json >> $GITHUB_ENV
-          echo -e '\nEOF' >> $GITHUB_ENV
+      - name: Get Packer build manifest
+        id: get-manifest
+        run: echo "manifest=$(cat packer-manifest.json)" >> $GITHUB_OUTPUT
 
-      - name: Create release
-        id: release
-        uses: softprops/action-gh-release@v2
+  create-release:
+    name: Create release
+    runs-on: ubuntu-latest
+    needs: packer-build
+    steps:
+      - run: echo "${{ needs.packer-build.outputs.manifest }}" > packer-manifest.json
+
+      - uses: softprops/action-gh-release@v2
         with:
-          tag_name: '${{ fromJson(env.MANIFEST).builds[0].custom_data.vm_name }}'
+          tag_name: '${{ fromJson(needs.packer-build.outputs.manifest).builds[0].custom_data.vm_name }}'
           name: Packer Build ${{ github.run_number }}
           files: packer-manifest.json
           make_latest: true
 
-      - name: Trigger Terraform plan
-        run: |
+  trigger-terraform:
+    name: Trigger Terraform plan
+    runs-on: ubuntu-latest
+    needs: packer-build
+    steps:
+      - run: |
           curl -L \
             -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ secrets.TERRAFORM_DISPATCH_TOKEN }}" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            -d '{"event_type":"packer-build-success","client_payload":${{ env.MANIFEST }}}' \
+            -d '{"event_type":"packer-build-success","client_payload":${{ needs.packer-build.outputs.manifest }}}' \
             https://api.github.com/repos/MrStarktastic/homelab-terraform/dispatches
