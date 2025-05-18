@@ -24,7 +24,7 @@ variable "iso_base_url" {
 }
 
 variable "iso_name" {
-  default = "debian-12.10.0-amd64-netinst.iso"
+  default = "debian-12.11.0-amd64-netinst.iso"
 }
 
 variable "iso_storage_pool" {
