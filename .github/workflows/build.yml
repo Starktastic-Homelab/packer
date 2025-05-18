@@ -56,11 +56,11 @@ jobs:
     runs-on: ubuntu-latest
     needs: packer-build
     steps:
-      - run: echo "${{ needs.packer-build.outputs.manifest }}" > packer-manifest.json
+      - run: echo "${{ toJSON(needs.packer-build.outputs.manifest) }}" > packer-manifest.json
 
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: '${{ fromJson(needs.packer-build.outputs.manifest).builds[0].custom_data.vm_name }}'
+          tag_name: '${{ fromJSON(needs.packer-build.outputs.manifest).builds[0].custom_data.vm_name }}'
           name: Packer Build ${{ github.run_number }}
           files: packer-manifest.json
           make_latest: true
