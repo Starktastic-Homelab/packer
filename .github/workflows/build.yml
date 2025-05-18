@@ -46,7 +46,10 @@ jobs:
 
       - name: Get Packer build manifest
         id: get-manifest
-        run: echo "manifest=$(cat packer-manifest.json)" >> $GITHUB_OUTPUT
+        run: |
+          echo 'manifest<<EOF' >> $GITHUB_OUTPUT
+          cat packer-manifest.json >> $GITHUB_OUTPUT
+          echo -e '\nEOF' >> $GITHUB_OUTPUT
 
   create-release:
     name: Create release
