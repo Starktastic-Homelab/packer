@@ -83,8 +83,15 @@ jobs:
           git config user.name "GitHub Actions (Packer)"
           git config user.email "actions.packer@github.com"
 
+          # Checkout branch
           BRANCH_NAME=packer-build-${{ github.run_number }}
-          git checkout -b $BRANCH_NAME || git checkout $BRANCH_NAME
+          git checkout -b $BRANCH_NAME
+          if [ $? -ne 0 ]; then
+            git checkout $BRANCH_NAME
+            git pull
+          fi
+
+          # Commit and push
           echo -e ${{ toJSON(needs.packer-build.outputs.manifest) }} > packer-manifest.json
           git add packer-manifest.json
           git commit -m "Update Packer manifest file - ${{ github.run_number }}"
