@@ -76,7 +76,7 @@ jobs:
           repository: MrStarktastic/homelab-terraform
           token: ${{ secrets.TERRAFORM_DISPATCH_TOKEN }}
 
-      - name: Create/update PR
+      - name: Create PR
         env:
           GITHUB_TOKEN: ${{ secrets.TERRAFORM_DISPATCH_TOKEN }}
         run: |
