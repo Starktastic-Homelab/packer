@@ -85,6 +85,7 @@ jobs:
 
           # Checkout branch
           BRANCH_NAME=packer-build-${{ github.run_number }}
+          git fetch
           git checkout -b $BRANCH_NAME || {
             echo "Branch already exists. Checking out existing branch."
             git checkout $BRANCH_NAME
