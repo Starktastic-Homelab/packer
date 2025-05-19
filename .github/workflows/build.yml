@@ -85,27 +85,17 @@ jobs:
 
           # Checkout branch
           BRANCH_NAME=packer-build-${{ github.run_number }}
-          git fetch
-          git checkout -b $BRANCH_NAME || {
-            echo "Branch already exists. Checking out existing branch."
-            git checkout $BRANCH_NAME
-            git reset --hard origin/$BRANCH_NAME
-            git pull
-          }
+          git checkout -b $BRANCH_NAME
 
           # Commit and push
           echo -e ${{ toJSON(needs.packer-build.outputs.manifest) }} > packer-manifest.json
           git add packer-manifest.json
-          if git commit -m "Update Packer manifest file - ${{ github.run_number }}"; then
-            git push -u origin $BRANCH_NAME
-          fi
+          git commit -m "Update Packer manifest file - ${{ github.run_number }}"
+          git push -u origin $BRANCH_NAME
 
-          if [ -z $(gh pr list --head $BRANCH_NAME --json number --jq '.[0].number') ]; then
-            gh pr create \
-              --base main \
-              --head $BRANCH_NAME \
-              --title "Update Packer manifest file" \
-              --body "This PR updates the Packer manifest file with the latest build information."
-          else
-            echo "PR already exists. Skipping creation."
-          fi
+          # Create PR
+          gh pr create \
+            --base main \
+            --head $BRANCH_NAME \
+            --title "Update Packer manifest file" \
+            --body "This PR updates the Packer manifest file with the latest build information."
