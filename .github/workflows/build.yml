@@ -85,6 +85,7 @@ jobs:
 
           BRANCH_NAME=packer-build-${{ github.run_number }}
           git checkout -b $BRANCH_NAME || git checkout $BRANCH_NAME
+          git pull origin $BRANCH_NAME
           echo -e ${{ toJSON(needs.packer-build.outputs.manifest) }} > packer-manifest.json
           git add packer-manifest.json
           git commit -m "Update Packer manifest file - ${{ github.run_number }}" || echo 'No changes to commit'
