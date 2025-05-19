@@ -75,8 +75,8 @@ jobs:
         with:
           repository: MrStarktastic/homelab-terraform
           token: ${{ secrets.TERRAFORM_DISPATCH_TOKEN }}
-      
-      - name: Create branch and PR for manifest file
+
+      - name: Create/update PR
         env:
           GITHUB_TOKEN: ${{ secrets.TERRAFORM_DISPATCH_TOKEN }}
         run: |
@@ -85,19 +85,17 @@ jobs:
 
           # Checkout branch
           BRANCH_NAME=packer-build-${{ github.run_number }}
-          git checkout -b $BRANCH_NAME
-          if [ $? -ne 0 ]; then
+          git checkout -b $BRANCH_NAME || {
+            echo "Branch already exists. Checking out existing branch."
             git checkout $BRANCH_NAME
+            git reset --hard origin/$BRANCH_NAME
             git pull
-          fi
+          }
 
           # Commit and push
           echo -e ${{ toJSON(needs.packer-build.outputs.manifest) }} > packer-manifest.json
           git add packer-manifest.json
-          git commit -m "Update Packer manifest file - ${{ github.run_number }}"
-          if [ $? -ne 0 ]; then
-            echo 'No changes to commit.'
-          else
+          if git commit -m "Update Packer manifest file - ${{ github.run_number }}"; then
             git push -u origin $BRANCH_NAME
           fi
 
