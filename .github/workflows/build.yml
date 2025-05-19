@@ -97,5 +97,5 @@ jobs:
               --title "Update Packer manifest file" \
               --body "This PR updates the Packer manifest file with the latest build information."
           else
-            echo "Pull request already exists. Skipping creation."
+            echo "PR already exists. Skipping creation."
           fi
