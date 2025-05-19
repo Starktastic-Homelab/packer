@@ -84,10 +84,10 @@ jobs:
           git config user.email "actions.packer@github.com"
 
           BRANCH_NAME=packer-build-${{ github.run_number }}
-          git checkout -b $BRANCH_NAME
+          git checkout -b $BRANCH_NAME || git checkout $BRANCH_NAME
           echo -e ${{ toJSON(needs.packer-build.outputs.manifest) }} > packer-manifest.json
           git add packer-manifest.json
-          git commit -m "Update Packer manifest file - ${{ github.run_number }}"
+          git commit -m "Update Packer manifest file - ${{ github.run_number }}" || echo 'No changes to commit'
           git push -u origin $BRANCH_NAME
 
           if [ -z $(gh pr list --head $BRANCH_NAME --json number --jq '.[0].number') ]; then
