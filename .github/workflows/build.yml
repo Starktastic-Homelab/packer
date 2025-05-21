@@ -98,5 +98,5 @@ jobs:
           gh pr create \
             --base main \
             --head $BRANCH_NAME \
-            --title "Update Packer manifest file" \
+            --title "Update base VM template" \
             --body "This PR updates the Packer manifest file with the latest build information."

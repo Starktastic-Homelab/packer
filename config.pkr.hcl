@@ -1,8 +1,8 @@
 packer {
   required_plugins {
-    name = {
-      version = "v1.2.2"
+    proxmox = {
       source  = "github.com/hashicorp/proxmox"
+      version = "v1.2.2"
     }
   }
 }
