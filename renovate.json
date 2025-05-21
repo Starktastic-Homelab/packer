@@ -1,6 +1,24 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
-  ]
+    "config:base"
+  ],
+  "enabledManagers": ["regex"],
+  "regexManagers": [
+    {
+      "fileMatch": ["\\.pkr\\.hcl$"],
+      "matchStrings": [
+        "source\\s*=\\s*\"(?<depName>github\\.com/[^\"]+)\"[\\s\\S]*?version\\s*=\\s*\"(?<currentValue>v?[^\"]+)\""
+      ],
+      "datasourceTemplate": "github-releases",
+      "extractVersion": true
+    }
+  ],
+  "packageRules": [
+    {
+      "matchDatasources": ["github-releases"],
+      "groupName": "packer-plugins"
+    }
+  ],
+  "schedule": ["weekly"]
 }
