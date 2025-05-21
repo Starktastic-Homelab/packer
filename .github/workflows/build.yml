@@ -20,7 +20,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Packer
         uses: hashicorp/setup-packer@v3
@@ -72,7 +72,7 @@ jobs:
     needs: packer-build
     steps:
       - name: Checkout Terraform repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: MrStarktastic/homelab-terraform
           token: ${{ secrets.TERRAFORM_DISPATCH_TOKEN }}
