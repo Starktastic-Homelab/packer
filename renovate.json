@@ -1,16 +1,17 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:base",
+    "config:recommended",
     "schedule:earlyMondays"
   ],
   "enabledManagers": [
-    "regex"
+    "custom.regex"
   ],
-  "regexManagers": [
+  "customManagers": [
     {
-      "fileMatch": [
-        "\\.pkr\\.hcl$"
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/\\.pkr\\.hcl$/"
       ],
       "matchStrings": [
         "required_version[\\s]+=[\\s]+\"=?(?<currentValue>\\S*)\"",
