@@ -5,8 +5,8 @@
     "schedule:earlyMondays",
     ":dependencyDashboard"
   ],
-  "recreateWhen": "always",
   "enabledManagers": [
+    "github-actions",
     "custom.regex"
   ],
   "customManagers": [
