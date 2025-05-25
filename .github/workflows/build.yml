@@ -61,9 +61,8 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: '${{ fromJSON(needs.packer-build.outputs.manifest).builds[0].custom_data.vm_name }}'
-          name: Packer Build ${{ github.run_number }}
           files: manifest.json
+          tag_name: ${{ fromJSON(needs.packer-build.outputs.manifest).builds[0].custom_data.git_tag }}
           make_latest: true
 
   push-manifest:
@@ -98,5 +97,5 @@ jobs:
           gh pr create \
             --base main \
             --head $BRANCH_NAME \
-            --title "Update base VM template" \
+            --title "Update base VM template (${{ fromJSON(needs.packer-build.outputs.manifest).builds[0].custom_data.vm_name }})" \
             --body "This PR updates the Packer manifest file with the latest build information."

@@ -8,5 +8,5 @@ packer {
 }
 
 locals {
-  vm_name = "packer-${regex("debian-\\d+\\.\\d+\\.\\d+", var.iso_name)}-${uuidv4()}"
+  vm_name = "packer-${regex("debian-\\d+\\.\\d+\\.\\d+", var.iso_name)}-${formatdate("YYYYMMDDhhmmss", timestamp())}"
 }
