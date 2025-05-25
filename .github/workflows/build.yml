@@ -62,7 +62,7 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: manifest.json
-          tag_name: ${{ fromJSON(needs.packer-build.outputs.manifest).builds[0].custom_data.vm_name }}
+          tag_name: ${{ fromJSON(needs.packer-build.outputs.manifest).builds[0].custom_data.git_tag }}
           make_latest: true
 
   push-manifest:
