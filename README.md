@@ -111,7 +111,7 @@ At the end of the Packer build:
 
 - Proxmox VE 8.4.1
 - Packer 1.12
-- Debian 12.10.0 ISO (netinst)
+- Debian 12.11.0 ISO (netinst)
 
 ---
 
