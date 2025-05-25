@@ -48,7 +48,8 @@ variable "memory" {
 }
 
 variable "disk_storage_pool" {
-  default = "local-zfs"
+  #default = "local-zfs"
+  default = "local-lvm" # TEMPORARY
 }
 
 variable "network_adapter_bridge" {
