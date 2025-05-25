@@ -1,0 +1,14 @@
+name: Dummy
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  dummy:
+    name: Dummy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
