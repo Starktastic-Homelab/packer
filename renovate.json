@@ -5,6 +5,7 @@
     "schedule:earlyMondays",
     ":dependencyDashboard"
   ],
+  "recreateWhen": "always",
   "enabledManagers": [
     "custom.regex"
   ],
