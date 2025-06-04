@@ -68,7 +68,7 @@ jobs:
           gh release create \
             ${{ fromJSON(needs.packer-build.outputs.manifest).builds[0].custom_data.git_tag }} \
             --generate-notes \
-            --latest
+            --latest \
             manifest.json
 
   push-manifest:
