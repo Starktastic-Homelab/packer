@@ -80,8 +80,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.TERRAFORM_DISPATCH_TOKEN }}
         run: |
-          git config user.name "GitHub Actions (Packer)"
-          git config user.email "actions.packer@github.com"
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
 
           # Checkout branch
           BRANCH_NAME=packer-build-${{ github.run_number }}
