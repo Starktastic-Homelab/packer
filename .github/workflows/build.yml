@@ -6,6 +6,7 @@ on:
       - main
     paths-ignore:
       - 'README.md'
+      - 'renovate.json'
   workflow_dispatch:
 
 permissions:
@@ -16,7 +17,7 @@ jobs:
     name: Packer build
     runs-on: self-hosted
     outputs:
-      manifest: ${{ steps.get-manifest.outputs.manifest }}
+      manifest: ${{ steps.get-manifest.outputs.file }}
 
     steps:
       - name: Checkout repository
@@ -26,9 +27,6 @@ jobs:
         uses: hashicorp/setup-packer@v3
         with:
           version: latest
-
-      - name: Initialize Packer
-        run: packer init -force -upgrade .
 
       - name: Build Proxmox template
         env:
@@ -43,12 +41,14 @@ jobs:
               "hostname": "${{ vars.APT_MIRROR_HOSTNAME }}",
               "directory": "${{ vars.APT_MIRROR_DIRECTORY }}"
             }
-        run: packer build -force .
+        run: |
+          packer init -force -upgrade .
+          packer build -force .
 
       - name: Get Packer build manifest
         id: get-manifest
         run: |
-          echo 'manifest<<EOF' >> $GITHUB_OUTPUT
+          echo 'file<<EOF' >> $GITHUB_OUTPUT
           cat packer-manifest.json >> $GITHUB_OUTPUT
           echo -e '\nEOF' >> $GITHUB_OUTPUT
 
@@ -59,11 +59,13 @@ jobs:
     steps:
       - run: echo -e ${{ toJSON(needs.packer-build.outputs.manifest) }} > manifest.json
 
-      - uses: softprops/action-gh-release@v2
-        with:
-          files: manifest.json
-          tag_name: ${{ fromJSON(needs.packer-build.outputs.manifest).builds[0].custom_data.git_tag }}
-          make_latest: true
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create \
+            ${{ fromJSON(needs.packer-build.outputs.manifest).builds[0].custom_data.git_tag }} \
+            -F manifest.json \
+            --latest
 
   push-manifest:
     name: Push to homelab-terraform repo
@@ -76,12 +78,12 @@ jobs:
           repository: MrStarktastic/homelab-terraform
           token: ${{ secrets.TERRAFORM_DISPATCH_TOKEN }}
 
-      - name: Create PR
+      - name: Create Pull Request
         env:
           GITHUB_TOKEN: ${{ secrets.TERRAFORM_DISPATCH_TOKEN }}
         run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
+          git config user.name "GitHub Actions (Packer)"
+          git config user.email "actions.packer@github.com"
 
           # Checkout branch
           BRANCH_NAME=packer-build-${{ github.run_number }}
