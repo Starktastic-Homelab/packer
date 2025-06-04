@@ -67,8 +67,9 @@ jobs:
         run: |
           gh release create \
             ${{ fromJSON(needs.packer-build.outputs.manifest).builds[0].custom_data.git_tag }} \
-            -F manifest.json \
+            --generate-notes \
             --latest
+            manifest.json
 
   push-manifest:
     name: Push to homelab-terraform repo
