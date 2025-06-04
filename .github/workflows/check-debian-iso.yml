@@ -13,7 +13,7 @@ jobs:
   check-debian-iso:
     runs-on: ubuntu-latest
     env:
-      ISO_URL_BASE: "https://get.debian.org/images/release/current/amd64/iso-cd"
+      ISO_URL_BASE: "https://get.debian.org/images/release/current/amd64/iso-cd/"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -66,7 +66,7 @@ jobs:
             const output = `
             🆕 **Debian ISO Updated**
 
-            **Download:** [${{ steps.latest.outputs.iso }}](${{ env.ISO_URL_BASE }}/${{ steps.latest.outputs.iso }})
+            **Download:** [${{ steps.latest.outputs.iso }}](${{ env.ISO_URL_BASE }}${{ steps.latest.outputs.iso }})
 
             This PR updates the \`iso_name\` variable in \`debian.auto.pkrvars.hcl\` to use the latest ISO available.`;
 
