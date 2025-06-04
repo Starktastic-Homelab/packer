@@ -56,7 +56,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Comment on Pull Request
-        if: steps.latest.outputs.iso != steps.current.outputs.current_iso
+        if: steps.latest.outputs.iso != steps.current.outputs.iso
         uses: actions/github-script@v7
         with:
           github-token: ${{ github.token }}
