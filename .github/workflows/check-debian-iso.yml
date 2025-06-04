@@ -22,14 +22,12 @@ jobs:
         id: current
         run: |
           CURRENT=$(grep -Po '(?<=iso_name = ")[^"]*' debian.auto.pkrvars.hcl)
-          echo "Current ISO found: $CURRENT"
           echo "iso=$CURRENT" >> $GITHUB_OUTPUT
 
       - name: Get latest ISO version from Debian site
         id: latest
         run: |
           LATEST=$(curl -s ${{ env.ISO_URL_BASE }} | grep -Po 'debian-\d+\.\d+\.\d+-amd64-netinst\.iso' | head -n1)
-          echo "Latest ISO found: $LATEST"
           echo "iso=$LATEST" >> $GITHUB_OUTPUT
 
       - name: Compare versions and update if necessary
