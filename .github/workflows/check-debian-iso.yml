@@ -54,7 +54,7 @@ jobs:
           git push origin "$NEW_BRANCH"
 
           PR_URL=$(gh pr create \
-            --title "chore: bump Debian ISO to ${{ steps.latest.outputs.iso }}" \
+            --title "Update Debian ISO to ${{ steps.latest.outputs.iso }}" \
             --body "New Debian ISO detected and updated: \`${{ steps.latest.outputs.iso }}\`" \
             --head "$NEW_BRANCH" \
             --base main)
