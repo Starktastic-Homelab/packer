@@ -31,6 +31,7 @@ jobs:
           echo "iso=$LATEST" >> $GITHUB_OUTPUT
 
       - name: Compare versions and update if necessary
+        id: pr
         if: steps.latest.outputs.iso != steps.current.outputs.iso
         run: |
           git config user.name "github-actions"
@@ -51,26 +52,16 @@ jobs:
             --base main \
             --json url --jq .url)
 
-          echo "pr_url=$PR_URL" >> $GITHUB_ENV
+          echo "url=$PR_URL" >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Comment on Pull Request
         if: steps.latest.outputs.iso != steps.current.outputs.iso
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ github.token }}
-          script: |
-            const output = `
-            🆕 **Debian ISO Updated**
+        run: |
+          gh pr comment ${{ steps.pr.outputs.url }} --body `
+          🆕 **Debian ISO Updated**
 
-            **Download:** [${{ steps.latest.outputs.iso }}](${{ env.ISO_URL_BASE }}${{ steps.latest.outputs.iso }})
+          **Download:** [${{ steps.latest.outputs.iso }}](${{ env.ISO_URL_BASE }}${{ steps.latest.outputs.iso }})
 
-            This PR updates the \`iso_name\` variable in \`debian.auto.pkrvars.hcl\` to use the latest ISO available.`;
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: output
-            });
+          This PR updates the \`iso_name\` variable in \`debian.auto.pkrvars.hcl\` to use the latest ISO available.`;
