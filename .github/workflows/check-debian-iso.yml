@@ -55,8 +55,7 @@ jobs:
             --title "chore: bump Debian ISO to ${{ steps.latest.outputs.iso }}" \
             --body "New Debian ISO detected and updated: \`${{ steps.latest.outputs.iso }}\`" \
             --head "$NEW_BRANCH" \
-            --base main \
-            --json url --jq .url)
+            --base main)
 
           echo "url=$PR_URL" >> $GITHUB_OUTPUT
         env:
