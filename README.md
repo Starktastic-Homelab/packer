@@ -29,15 +29,7 @@ git clone https://github.com/MrStarktastic/homelab-packer.git
 cd homelab-packer
 ```
 
-### 2. **Configure Variables**
-
-- Edit (or let automation update) `debian.auto.pkrvars.hcl` to specify the desired Debian ISO version and any runtime overrides.
-- Example:
-  ```hcl
-  iso_name = "debian-12.11.0-amd64-netinst.iso"
-  ```
-
-### 3. **Prepare Environment Variables**
+### 2. **Prepare Environment Variables**
 
 - **You must set** these (see “Authentication” below):
   - `PKR_VAR_proxmox_api_url`
@@ -50,14 +42,14 @@ cd homelab-packer
   export PKR_VAR_proxmox_api_token_secret="your-token-secret"
   ```
 
-### 4. **Build a Template Locally**
+### 3. **Build a Template Locally**
 
 ```sh
 packer init .
 packer build -var-file=debian.auto.pkrvars.hcl .
 ```
 
-### 5. **Automated Build via GitHub Actions**
+### 4. **Automated Build via GitHub Actions**
 
 - This repository is set up to:
   - **Lint and validate** Packer files on pull requests.
