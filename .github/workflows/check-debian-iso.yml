@@ -40,6 +40,12 @@ jobs:
           sed -i "s/${{ steps.current.outputs.iso }}/${{ steps.latest.outputs.iso }}/" debian.auto.pkrvars.hcl
 
           NEW_BRANCH="update-debian-iso-${{ steps.latest.outputs.iso }}"
+
+          if git show-ref --verify --quiet refs/heads/"$NEW_BRANCH"; then
+            echo "Branch $NEW_BRANCH already exists. Exiting."
+            exit 0
+          fi
+
           git checkout -b "$NEW_BRANCH"
           git add debian.auto.pkrvars.hcl
           git commit -m "Update Debian ISO to ${{ steps.latest.outputs.iso }}"
