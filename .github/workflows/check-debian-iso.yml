@@ -58,8 +58,6 @@ jobs:
             --base main)
 
           echo "url=$PR_URL" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Comment on Pull Request
         if: steps.latest.outputs.iso != steps.current.outputs.iso
