@@ -67,18 +67,6 @@ If a new ISO is available, it:
 
 ---
 
-## 🛠️ Repository Structure
-
-| File/Dir                   | Purpose                                              |
-|----------------------------|-----------------------------------------------------|
-| `debian.pkr.hcl`           | Main Packer build template (Debian cloud-init VM)   |
-| `variables.pkr.hcl`        | Declares all variables (no defaults for runtime-override) |
-| `debian.auto.pkrvars.hcl`  | **Auto-managed**: specifies the current Debian ISO  |
-| `provision/`               | Scripts & configs for base system hardening         |
-| `.github/workflows/`       | CI/CD workflows: lint, validate, build, update-ISO  |
-
----
-
 ## 🤖 Automation & CI
 
 - **`lint-validate.yml`**: Checks formatting and syntax on all PRs.
