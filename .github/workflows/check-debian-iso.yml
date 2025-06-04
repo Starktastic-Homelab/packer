@@ -66,9 +66,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh pr comment ${{ steps.pr.outputs.url }} --body `
+          gh pr comment ${{ steps.pr.outputs.url }} --body '''
           🆕 **Debian ISO Updated**
 
           **Download:** [${{ steps.latest.outputs.iso }}](${{ env.ISO_URL_BASE }}${{ steps.latest.outputs.iso }})
 
-          This PR updates the \`iso_name\` variable in \`debian.auto.pkrvars.hcl\` to use the latest ISO available.`;
+          This PR updates the \`iso_name\` variable in \`debian.auto.pkrvars.hcl\` to use the latest ISO available.'''
