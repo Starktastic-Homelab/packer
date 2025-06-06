@@ -20,13 +20,8 @@ jobs:
       manifest: ${{ steps.get-manifest.outputs.file }}
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install Packer
-        uses: hashicorp/setup-packer@v3
-        with:
-          version: latest
+      - name: Setup Packer
+        uses: ./.github/actions/setup-packer
 
       - name: Build Proxmox template
         env:

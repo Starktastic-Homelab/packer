@@ -1,0 +1,12 @@
+name: Setup Packer
+description: Common setup steps for Packer jobs
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install Packer
+      uses: hashicorp/setup-packer@v3
+      with:
+        version: latest
