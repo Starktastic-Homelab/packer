@@ -16,7 +16,7 @@ It supports headless, API-driven image builds and integrates seamlessly with CI 
 - **Strictly declarative config via `.auto.pkrvars.hcl`**
 - **Cloud-init ready templates** (for hands-free VM provisioning)
 - **Provisioners for minimal, hardened base OS**
-- **CI workflows for lint, validate, build, and test**
+- **CI workflows for format, validate, build**
 
 ---
 
@@ -52,7 +52,7 @@ packer build -var-file=debian.auto.pkrvars.hcl .
 ### 4. **Automated Build via GitHub Actions**
 
 - This repository is set up to:
-  - **Lint and validate** Packer files on pull requests.
+  - **Validate and format** Packer files on pull requests.
   - **Build and test** templates on merge to `main` (runs on a self-hosted runner, e.g. Raspberry Pi).
   - **Auto-bump** the Debian ISO when a new release is detected.
 
@@ -69,7 +69,7 @@ If a new ISO is available, it:
 
 ## 🤖 Automation & CI
 
-- **`lint-validate.yml`**: Checks formatting and syntax on all PRs.
+- **`validate-and-format.yml`**: Checks formatting and syntax on all PRs.
 - **`build.yml`**: Builds and tests templates on push to main (self-hosted runner).
 - **`check-debian-iso.yml`**: Weekly Debian ISO version check and PR creation.
 
