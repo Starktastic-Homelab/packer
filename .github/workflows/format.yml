@@ -1,0 +1,39 @@
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '!*.hcl'
+
+jobs:
+  format:
+    name: Format Packer files
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.FORMAT_PAT }}
+
+      - name: Install Packer
+        uses: hashicorp/setup-packer@v3
+        with:
+          version: latest
+
+      - name: Run Packer fmt command
+        id: fmt
+        run: |
+          CHANGED_FILES=$(packer fmt -recursive .)
+          echo "changed_files<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGED_FILES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Commit & push formatting changes
+        if: steps.fmt.outputs.changed_files != ''
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+          git add .
+          git commit -m "[skip ci] style: packer fmt"
+          git push
