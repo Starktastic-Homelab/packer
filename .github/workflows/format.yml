@@ -2,8 +2,8 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - '!*.hcl'
+    paths:
+      - '*.hcl'
 
 jobs:
   format:
