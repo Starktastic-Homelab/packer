@@ -1,3 +1,5 @@
+name: Format Packer files
+
 on:
   push:
     branches:
