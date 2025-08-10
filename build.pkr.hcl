@@ -1,5 +1,5 @@
 build {
-  sources = ["source.proxmox-iso.debian-12"]
+  sources = ["source.proxmox-iso.debian-13"]
 
   provisioner "shell" {
     expect_disconnect = true

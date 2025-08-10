@@ -1,4 +1,4 @@
-source "proxmox-iso" "debian-12" {
+source "proxmox-iso" "debian-13" {
   proxmox_url              = var.proxmox_api_url
   username                 = var.proxmox_api_token_id
   token                    = var.proxmox_api_token_secret
@@ -7,7 +7,7 @@ source "proxmox-iso" "debian-12" {
 
   vm_id                   = var.vm_id
   vm_name                 = local.vm_name
-  template_description    = "Debian 12 Template - ${formatdate("YYYY-MM-DD.hh:mm:ss.ZZZ", timestamp())}"
+  template_description    = "Debian 13 Template - ${formatdate("YYYY-MM-DD.hh:mm:ss.ZZZ", timestamp())}"
   os                      = "l26"
   scsi_controller         = var.scsi_controller
   cpu_type                = var.cpu_type
