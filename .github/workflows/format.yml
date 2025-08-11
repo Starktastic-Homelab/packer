@@ -16,8 +16,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          repository: ${{ github.repository }}
-          ref: ${{ github.ref }}
           token: ${{ secrets.FORMAT_PAT }}
 
       - name: Install Packer
