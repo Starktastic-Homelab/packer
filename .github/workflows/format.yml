@@ -6,7 +6,6 @@ on:
       - main
     paths:
       - '*.hcl'
-  workflow_dispatch:
 
 jobs:
   format:
