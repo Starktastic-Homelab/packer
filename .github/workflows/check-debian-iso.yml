@@ -2,7 +2,7 @@ name: Check for new Debian ISO
 
 on:
   schedule:
-    - cron: '0 0 * * 0'  # Every Sunday at midnight
+    - cron: '0 9 * * 5'  # Every Friday morning
   workflow_dispatch:
 
 permissions:
