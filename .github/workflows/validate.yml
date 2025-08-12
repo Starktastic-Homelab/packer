@@ -26,6 +26,7 @@ jobs:
 
       - name: Validate
         env:
+          PACKER_GITHUB_API_TOKEN: ${{ secrets.PACKER_GITHUB_API_TOKEN }}
           # Make sure that validate does not fail due to unset variables
           PKR_VAR_proxmox_api_url: 'https://proxmox.example.com:8006/api2/json'
           PKR_VAR_proxmox_api_token_id: 'id'
