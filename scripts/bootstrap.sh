@@ -38,4 +38,10 @@ if ! grep -q '^GRUB_TIMEOUT_STYLE=hidden' /etc/default/grub; then
 fi
 update-grub
 
+# ----------------------------
+# Reset cloud-init for templating
+# ----------------------------
+echo 'Resetting cloud-init state...'
+cloud-init clean --logs
+
 echo 'Bootstrap script completed successfully!'
