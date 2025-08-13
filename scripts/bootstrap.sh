@@ -17,7 +17,7 @@ apt full-upgrade -y
 # Install core dependencies
 # ----------------------------
 echo 'Installing core packages...'
-apt install -y --install-recommends curl cloud-init systemd-resolved
+apt install -y --install-recommends curl cloud-init netplan.io systemd-resolved
 
 # ----------------------------
 # Clean and remove unnecessary packages
