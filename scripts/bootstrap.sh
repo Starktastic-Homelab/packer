@@ -17,7 +17,7 @@ apt full-upgrade -y
 # Install core dependencies
 # ----------------------------
 echo 'Installing core packages...'
-apt install -y --install-recommends curl cloud-init netplan.io systemd-resolved
+apt install -y --install-recommends curl cloud-init
 
 # ----------------------------
 # Clean and remove unnecessary packages
@@ -27,17 +27,6 @@ apt autoremove -y
 
 echo 'Cleaning up APT cache...'
 apt autoclean
-
-# ----------------------------
-# Enable the services netplan expects
-# ----------------------------
-systemctl enable --now systemd-networkd systemd-resolved
-
-# ----------------------------
-# Make /etc/resolv.conf show the *upstream* DNS (not 127.0.0.53)
-# ----------------------------
-rm -f /etc/resolv.conf
-ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
 
 # ----------------------------
 # Remove GRUB timeout
