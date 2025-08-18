@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Packer
         uses: hashicorp/setup-packer@v3
@@ -59,7 +59,7 @@ jobs:
     needs: packer-build
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - run: echo -e ${{ toJSON(needs.packer-build.outputs.manifest) }} > manifest.json
 
@@ -78,7 +78,7 @@ jobs:
     needs: packer-build
     steps:
       - name: Checkout Terraform repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: MrStarktastic/homelab-terraform
           token: ${{ secrets.TERRAFORM_DISPATCH_TOKEN }}
