@@ -17,7 +17,24 @@ apt full-upgrade -y
 # Install core dependencies
 # ----------------------------
 echo 'Installing core packages...'
-apt install -y --install-recommends curl cloud-init resolvconf
+apt install -y --install-recommends curl cloud-init netplan.io systemd-resolved
+
+# ----------------------------
+# Switch Network Stack
+# ----------------------------
+echo 'Migrating from ifupdown to Netplan...'
+
+# Remove legacy networking so Cloud-Init defaults to Netplan
+apt purge -y ifupdown resolvconf
+
+# Enable systemd networking services
+systemctl enable systemd-networkd
+systemctl enable systemd-resolved
+
+# Link /etc/resolv.conf to systemd-resolved
+# This ensures standard Linux tools use the DNS settings Cloud-Init provides
+rm -f /etc/resolv.conf
+ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 
 # ----------------------------
 # Clean and remove unnecessary packages
@@ -37,6 +54,14 @@ if ! grep -q '^GRUB_TIMEOUT_STYLE=hidden' /etc/default/grub; then
   echo 'GRUB_TIMEOUT_STYLE=hidden' | tee -a /etc/default/grub
 fi
 update-grub
+
+# ----------------------------
+# Reset Machine ID
+# ----------------------------
+echo 'Resetting Machine ID...'
+truncate -s 0 /etc/machine-id
+rm -f /var/lib/dbus/machine-id
+ln -s /etc/machine-id /var/lib/dbus/machine-id
 
 # ----------------------------
 # Reset cloud-init for templating
