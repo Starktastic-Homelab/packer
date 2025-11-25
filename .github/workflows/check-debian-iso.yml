@@ -16,7 +16,7 @@ jobs:
       ISO_URL_BASE: "https://get.debian.org/images/release/current/amd64/iso-cd/"
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Get current ISO version
         id: current
