@@ -25,7 +25,7 @@ apt install -y --install-recommends curl cloud-init netplan.io systemd-resolved
 echo 'Migrating from ifupdown to Netplan...'
 
 # Remove legacy networking so Cloud-Init defaults to Netplan
-apt purge -y ifupdown resolvconf
+apt purge -y ifupdown
 
 # Enable systemd networking services
 systemctl enable systemd-networkd

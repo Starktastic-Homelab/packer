@@ -48,6 +48,7 @@ source "proxmox-iso" "debian-13" {
     type         = "virtio"
     disk_size    = "4G"
     storage_pool = var.disk_storage_pool
+    discard      = true
   }
 
   network_adapters {
