@@ -1,113 +1,96 @@
-# Homelab Packer
+# 📦 Homelab Packer: Debian Cloud-Init Template
 
-This repository builds a customized Debian-based Proxmox VM template using [HashiCorp Packer](https://www.packer.io/) for use in a self-hosted homelab environment.
+   
 
-The resulting image includes Proxmox-compatible configurations and is designed to be consumed by a Terraform-based infrastructure managed in a separate repository ([MrStarktastic/homelab-terraform](https://github.com/MrStarktastic/homelab-terraform)).
+This repository automates the creation of a "Golden Image" for **Proxmox VE** using HashiCorp Packer.
 
----
+It builds a **Debian** VM template designed specifically as a base for Kubernetes (K3s) nodes. It features a modernized networking stack, storage optimizations, and a fully automated GitOps supply chain.
 
-## 📦 Overview
+## ✨ Key Features
 
-### Project Structure
+  * **Modern Networking (Netplan):** The legacy `ifupdown` system is purged. The image uses `netplan.io` backed by `systemd-networkd` and `systemd-resolved`. This resolves common Cloud-Init race conditions and DNS issues on Proxmox.
+  * **Kubernetes Ready:**
+      * **Unique Identity:** Automatically resets `/etc/machine-id` on build. This ensures cloned nodes get unique DHCP leases and K3s Node IDs.
+      * **Dependencies:** Pre-installed with `open-iscsi`, `nfs-common`, and `qemu-guest-agent`.
+      * **Cloud-Native:** Configured with the `NoCloud` datasource for seamless Proxmox Cloud-Init integration.
+  * **Storage Optimized:** Disk is configured with `discard=true` (TRIM) enabled, ensuring the template remains small and cloned VMs utilize storage efficiently.
+  * **Automated Supply Chain:**
+      * **Weekly Checks:** A workflow monitors Debian mirrors for new ISO releases.
+      * **Auto-Updates:** If a new ISO is found, a PR is auto-generated.
+      * **Downstream Integration:** Upon a successful build, the pipeline pushes the new artifact manifest directly to the [Homelab Terraform Repository](https://github.com/MrStarktastic/homelab-terraform).
 
-```
+## 📂 Repository Structure
+
+```text
 .
-├── build.pkr.hcl                 # Entry point for Packer build
-├── config.pkr.hcl                # Plugin and builder configuration
-├── source.pkr.hcl                # Source configuration (VM definition)
-├── variables.pkr.hcl             # Default and required Packer variables
-├── debian.auto.pkrvars.hcl       # Auto-loaded user variable overrides
-├── cloud-init/                  # Cloud-init configuration files
-│   ├── cloud.cfg
-│   └── cloud.cfg.d/
-│       └── 99-pve.cfg
-├── http/
-│   └── preseed.cfg.tmpl         # Preseed template for Debian installation
-├── scripts/                     # Lifecycle and bootstrap scripts
-│   ├── bootstrap.sh
+├── build.pkr.hcl            # Main build definition (Provisioners & Post-Processors)
+├── source.pkr.hcl           # VM hardware specs (VirtIO, Cloud-Init, Discard enabled)
+├── config.pkr.hcl           # Plugin configuration (HashiCorp Proxmox)
+├── variables.pkr.hcl        # Input variables definition
+├── debian.auto.pkrvars.hcl  # Variable overrides (ISO Version)
+├── scripts/
+│   ├── bootstrap.sh         # The "Magic": Installs Netplan, resets IDs, hardens OS
 │   └── delete_builder_user.sh
-├── .github/
-│   └── workflows/               # GitHub Actions workflows
-│       ├── build.yml
-│       ├── check-debian-iso.yml
-│       ├── format.yml
-│       └── validate.yml
-├── renovate.json                # Renovate configuration for automation
-└── README.md
+├── cloud-init/              # Cloud-Init config (NoCloud datasource)
+├── http/                    # Preseed configuration for unattended install
+└── .github/workflows/       # CI/CD Pipelines
 ```
 
----
+## 🛠️ Prerequisites
 
-## 🚀 Packer Template Flow
+  * **Proxmox VE** (7.x or 8.x)
+  * **Packer** (v1.10+)
+  * **Proxmox API Token** (User must have permissions to Datastore, VM.Allocate, VM.Console)
 
-1. **`build.pkr.hcl`** – Main file tying together variables, source, and post-processors.
-2. **`source.pkr.hcl`** – Defines how the base Debian image is downloaded and configured.
-3. **`http/preseed.cfg.tmpl`** – Used during boot to automate Debian installation via preseeding.
-4. **`cloud-init/`** – Injected post-install to configure the VM for Proxmox cloud-init compatibility.
-5. **`scripts/bootstrap.sh`** – Installs SSH keys and packages.
-6. **`scripts/delete_builder_user.sh`** – Removes the temporary user created during provisioning.
+## 🚀 Usage
 
----
+### 1\. Configure Credentials
 
-## 🔧 GitHub Actions
-
-This repository includes automated CI workflows to:
-
-- Validate packer templates (`validate.yml`)
-- Auto-format code (`format.yml`)
-- Build and upload images (`build.yml`)
-- Check for new Debian ISO versions and open PRs (`check-debian-iso.yml`)
-
----
-
-## 🔐 Authentication: API Token Setup
-
-To run Packer locally or in CI, you must supply a Proxmox API token via environment variables or Packer variables.
-
-### Required Packer variables
-
-These variables must be passed in as environment variables or using `-var`/`-var-file`:
-
-```hcl
-variable "proxmox_api_url" {}
-variable "proxmox_api_token_id" {}
-variable "proxmox_api_token_secret" {}
-```
-
-### Using Environment Variables
+You can provide credentials via environment variables or a `secrets.auto.pkrvars.hcl` file (git-ignored):
 
 ```bash
-export PKR_VAR_proxmox_api_url="https://proxmox.example.com:8006/api2/json"
-export PKR_VAR_proxmox_api_token_id="user@pam!token"
-export PKR_VAR_proxmox_api_token_secret="secret"
+export PKR_VAR_proxmox_api_url="https://pve.example.com:8006/api2/json"
+export PKR_VAR_proxmox_api_token_id="packer@pve!token"
+export PKR_VAR_proxmox_api_token_secret="your-uuid-secret"
 ```
 
-Alternatively, use a `.auto.pkrvars.hcl` file (e.g., `debian.auto.pkrvars.hcl`) to define and override values locally.
+### 2\. Build Manually
 
----
+```bash
+# Initialize plugins
+packer init .
 
-## 🧠 Debian ISO Auto-Updater
+# Validate configuration
+packer validate .
 
-The `check-debian-iso.yml` GitHub Actions workflow checks for new ISO releases at `https://get.debian.org/images/release/current/amd64/iso-cd/` and creates a pull request to update the `iso_name` variable automatically when a new version is found.
+# Run the build
+packer build .
+```
 
----
+## ⚙️ Configuration Deep Dive
 
-## ♻️ Dependency Automation
+### The Bootstrapper (`scripts/bootstrap.sh`)
 
-[Renovate](https://docs.renovatebot.com/) is configured to:
+This script runs during the Packer build to transform a standard Debian install into a Cloud-Native template:
 
-- Monitor GitHub Actions workflows
-- Detect updates to Packer plugins
-- Propose PRs for plugin and dependency version updates
+1.  **Installs Core Deps:** `curl`, `cloud-init`, `netplan.io`, `systemd-resolved`, `open-iscsi`.
+2.  **Purges Legacy Network:** Removes `ifupdown` to force Cloud-Init to render Netplan YAML.
+3.  **Links DNS:** Symlinks `/etc/resolv.conf` to `systemd-resolved`'s stub listener.
+4.  **Resets Machine ID:** Truncates `/etc/machine-id` to ensure uniqueness on cloning.
 
----
+### CI/CD Workflow
 
-## 📎 Related Repositories
+1.  **Check ISO (`check-debian-iso.yml`):** Runs weekly. Scrapes Debian.org. If `debian.auto.pkrvars.hcl` is outdated, it updates the file and creates a PR.
+2.  **Build & Push (`build.yml`):**
+      * Runs on a **Self-Hosted Runner** (inside the homelab).
+      * Builds the VM template.
+      * Generates a `packer-manifest.json`.
+      * **Triggers Downstream:** Clones the `homelab-terraform` repo, updates the manifest file there, and opens a PR to deploy the new image.
 
-- **Terraform Integration**: [`MrStarktastic/homelab-terraform`](https://github.com/MrStarktastic/homelab-terraform) – Uses the built image to spin up k3s clusters and infrastructure.
+## 🔗 Related Repositories
 
----
+  * **Infrastructure:** [MrStarktastic/homelab-terraform](https://github.com/MrStarktastic/homelab-terraform) - Consumes the manifest produced by this repo to provision the cluster.
 
 ## 📄 License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the MIT License.
