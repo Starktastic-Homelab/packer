@@ -84,5 +84,5 @@ variable "apt_mirror" {
 
 variable "runner_host_ip" {
   description = "The IP address of the Packer runner host, used to serve HTTP content during the build."
-  type        = string
+  default     = "127.0.0.1"
 }
