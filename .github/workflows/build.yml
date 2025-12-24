@@ -70,19 +70,19 @@ jobs:
             manifest.json
 
   push-manifest:
-    name: Push to homelab-terraform repo
+    name: Push to terraform repo
     runs-on: ubuntu-latest
     needs: packer-build
     steps:
       - name: Checkout Terraform repository
         uses: actions/checkout@v6
         with:
-          repository: MrStarktastic/homelab-terraform
-          token: ${{ secrets.TERRAFORM_DISPATCH_TOKEN }}
+          repository: Starktastic-Homelab/terraform
+          token: ${{ secrets.ORG_DISPATCH_TOKEN }}
 
       - name: Create Pull Request
         env:
-          GITHUB_TOKEN: ${{ secrets.TERRAFORM_DISPATCH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.ORG_DISPATCH_TOKEN }}
         run: |
           git config user.name "GitHub Actions (Packer)"
           git config user.email "actions.packer@github.com"
