@@ -44,7 +44,7 @@ jobs:
             }
         run: |
           packer init -force -upgrade .
-          packer build -debug -force .
+          packer build -force .
 
       - name: Get Packer build manifest
         id: get-manifest
