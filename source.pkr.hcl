@@ -23,8 +23,7 @@ source "proxmox-iso" "debian-13" {
 
   http_port_min = 8000
   http_port_max = 8000
-  http_bind_address = var.runner_host_ip
-  boot_command = ["<esc><wait>auto url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/preseed.cfg<enter>"]
+  boot_command = ["<esc><wait>auto url=http://${var.runner_host_ip}:{{ .HTTPPort }}/preseed.cfg<enter>"]
   http_content = {
     "/preseed.cfg" = templatefile(
       "http/preseed.cfg.tmpl",
