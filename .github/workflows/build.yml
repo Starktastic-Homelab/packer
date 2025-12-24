@@ -16,17 +16,14 @@ jobs:
   packer-build:
     name: Packer build
     runs-on: self-hosted
+    container:
+      image: hashicorp/packer:light
     outputs:
       manifest: ${{ steps.get-manifest.outputs.file }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
-
-      - name: Install Packer
-        uses: hashicorp/setup-packer@v3
-        with:
-          version: latest
 
       - name: Build Proxmox template
         env:
