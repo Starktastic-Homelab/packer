@@ -30,7 +30,7 @@ jobs:
       - name: Build Proxmox template
         env:
           PACKER_GITHUB_API_TOKEN: ${{ secrets.PACKER_GITHUB_API_TOKEN }}
-          PKR_VAR_runner_host_ip: ${{ vars.RUNNER_HOST_IP }}
+          PKR_VAR_runner_host_ip: ${{ vars.PACKER_RUNNER_HOST_IP }}
           PKR_VAR_proxmox_api_url: ${{ vars.PROXMOX_API_URL }}
           PKR_VAR_proxmox_api_token_id: ${{ secrets.PROXMOX_API_TOKEN_ID }}
           PKR_VAR_proxmox_api_token_secret: ${{ secrets.PROXMOX_API_TOKEN_SECRET }}
