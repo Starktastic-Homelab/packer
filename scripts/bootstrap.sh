@@ -19,7 +19,6 @@ apt full-upgrade -y
 echo 'Installing core packages...'
 apt install -y --install-recommends \
     curl \
-    wget \
     build-essential \
     dkms \
     linux-headers-amd64 \
@@ -34,8 +33,8 @@ apt install -y --install-recommends \
 # Install Intel SR-IOV Driver
 # ----------------------------
 echo 'Installing Intel SR-IOV DKMS Driver...'
-wget -qO /tmp/i915.deb "https://github.com/strongtz/i915-sriov-dkms/releases/download/2025.12.10/i915-sriov-dkms_2025.12.10_amd64.deb"
-dpkg -i /tmp/i915.deb && rm /tmp/i915.deb
+curl -L -s -S -o i915.deb "https://github.com/strongtz/i915-sriov-dkms/releases/download/2025.12.10/i915-sriov-dkms_2025.12.10_amd64.deb"
+dpkg -i i915.deb && rm i915.deb
 
 # ----------------------------
 # Switch Network Stack
