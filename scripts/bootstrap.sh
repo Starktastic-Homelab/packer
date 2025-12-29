@@ -14,34 +14,32 @@ echo 'Upgrading all packages...'
 apt full-upgrade -y
 
 # ----------------------------
-# Install core dependencies
+# Install build dependencies
 # ----------------------------
-echo 'Installing core packages...'
+echo 'Installing build dependencies...'
 apt install -y --install-recommends \
     curl \
     build-essential \
     dkms \
     linux-headers-amd64 \
     cloud-init \
-    netplan.io \
-    systemd-resolved \
     nfs-common \
     intel-media-va-driver-non-free \
     vainfo
 
 # ----------------------------
-# Install Intel SR-IOV Driver
+# Install Intel SR-IOV driver
 # ----------------------------
 echo 'Installing Intel SR-IOV DKMS Driver...'
 curl -L -s -S -o i915.deb "https://github.com/strongtz/i915-sriov-dkms/releases/download/2025.12.10/i915-sriov-dkms_2025.12.10_amd64.deb"
 dpkg -i i915.deb && rm i915.deb
 
 # ----------------------------
-# Switch Network Stack
+# Switch network stack
 # ----------------------------
 echo 'Migrating from ifupdown to Netplan...'
 
-# Remove legacy networking so Cloud-Init defaults to Netplan
+apt install -y netplan.io systemd-resolved
 apt purge -y ifupdown
 
 # Enable systemd networking services
@@ -58,8 +56,6 @@ ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 # ----------------------------
 echo 'Removing unnecessary packages...'
 apt autoremove -y
-
-echo 'Cleaning up APT cache...'
 apt clean
 
 # ----------------------------
@@ -77,9 +73,9 @@ update-grub
 update-initramfs -u
 
 # ----------------------------
-# Reset Machine ID
+# Reset machine ID
 # ----------------------------
-echo 'Resetting Machine ID...'
+echo 'Resetting machine ID...'
 truncate -s 0 /etc/machine-id
 rm -f /var/lib/dbus/machine-id
 ln -s /etc/machine-id /var/lib/dbus/machine-id
