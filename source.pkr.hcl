@@ -13,7 +13,7 @@ source "proxmox-iso" "debian-13" {
   cpu_type                = var.cpu_type
   cores                   = var.cores
   memory                  = var.memory
-  machine            = "q35"
+  machine                 = "q35"
   qemu_agent              = true
   cloud_init              = true
   cloud_init_storage_pool = var.disk_storage_pool
@@ -24,7 +24,7 @@ source "proxmox-iso" "debian-13" {
 
   http_port_min = 8000
   http_port_max = 8000
-  boot_command = ["<esc><wait>auto url=http://${var.runner_host_ip}:{{ .HTTPPort }}/preseed.cfg<enter>"]
+  boot_command  = ["<esc><wait>auto url=http://${var.runner_host_ip}:{{ .HTTPPort }}/preseed.cfg<enter>"]
   http_content = {
     "/preseed.cfg" = templatefile(
       "http/preseed.cfg.tmpl",
