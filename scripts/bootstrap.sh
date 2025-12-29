@@ -17,7 +17,14 @@ apt full-upgrade -y
 # Install core dependencies
 # ----------------------------
 echo 'Installing core packages...'
-apt install -y --install-recommends curl cloud-init netplan.io systemd-resolved nfs-common
+apt install -y --install-recommends \
+    curl \
+    cloud-init \
+    netplan.io \
+    systemd-resolved \
+    nfs-common \
+    intel-media-va-driver-non-free \
+    vainfo
 
 # ----------------------------
 # Switch Network Stack
@@ -43,7 +50,7 @@ echo 'Removing unnecessary packages...'
 apt autoremove -y
 
 echo 'Cleaning up APT cache...'
-apt autoclean
+apt clean
 
 # ----------------------------
 # Remove GRUB timeout
