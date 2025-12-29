@@ -13,6 +13,7 @@ source "proxmox-iso" "debian-13" {
   cpu_type                = var.cpu_type
   cores                   = var.cores
   memory                  = var.memory
+  machine            = "q35"
   qemu_agent              = true
   cloud_init              = true
   cloud_init_storage_pool = var.disk_storage_pool

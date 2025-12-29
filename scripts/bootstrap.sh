@@ -19,12 +19,23 @@ apt full-upgrade -y
 echo 'Installing core packages...'
 apt install -y --install-recommends \
     curl \
+    wget \
+    build-essential \
+    dkms \
+    linux-headers-amd64 \
     cloud-init \
     netplan.io \
     systemd-resolved \
     nfs-common \
     intel-media-va-driver-non-free \
     vainfo
+
+# ----------------------------
+# Install Intel SR-IOV Driver
+# ----------------------------
+echo 'Installing Intel SR-IOV DKMS Driver...'
+wget -qO /tmp/i915.deb "https://github.com/strongtz/i915-sriov-dkms/releases/download/2025.12.10/i915-sriov-dkms_2025.12.10_amd64.deb"
+dpkg -i /tmp/i915.deb && rm /tmp/i915.deb
 
 # ----------------------------
 # Switch Network Stack
@@ -53,14 +64,18 @@ echo 'Cleaning up APT cache...'
 apt clean
 
 # ----------------------------
-# Remove GRUB timeout
+# Configure GRUB
 # ----------------------------
-echo 'Removing GRUB timeout...'
+echo 'Configuring GRUB...'
+sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="/GRUB_CMDLINE_LINUX_DEFAULT="i915.enable_guc=3 module_blacklist=xe /' /etc/default/grub
+
 sed -i 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/' /etc/default/grub
 if ! grep -q '^GRUB_TIMEOUT_STYLE=hidden' /etc/default/grub; then
   echo 'GRUB_TIMEOUT_STYLE=hidden' | tee -a /etc/default/grub
 fi
+
 update-grub
+update-initramfs -u
 
 # ----------------------------
 # Reset Machine ID
