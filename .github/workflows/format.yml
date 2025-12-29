@@ -15,7 +15,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
-          token: ${{ secrets.FORMAT_PAT }}
+          token: ${{ secrets.ORG_DISPATCH_TOKEN }}
 
       - name: Install Packer
         uses: hashicorp/setup-packer@v3
