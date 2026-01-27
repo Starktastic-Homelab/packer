@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e  # Exit on error
+set -e # Exit on error
 
 echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
 
@@ -18,14 +18,14 @@ apt full-upgrade -y
 # ----------------------------
 echo 'Installing build dependencies...'
 apt install -y --install-recommends \
-    curl \
-    build-essential \
-    dkms \
-    linux-headers-amd64 \
-    cloud-init \
-    nfs-common \
-    intel-media-va-driver-non-free \
-    vainfo
+  curl \
+  build-essential \
+  dkms \
+  linux-headers-amd64 \
+  cloud-init \
+  nfs-common \
+  intel-media-va-driver-non-free \
+  vainfo
 
 # ----------------------------
 # Install Intel SR-IOV driver
