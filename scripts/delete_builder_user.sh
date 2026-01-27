@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e  # Exit on error
+set -e # Exit on error
 
 echo "Removing builder user: $BUILDER_USER..."
 
