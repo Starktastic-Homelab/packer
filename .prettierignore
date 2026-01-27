@@ -1,0 +1,5 @@
+*.hcl
+*.pkr.hcl
+*.pkrvars.hcl
+.github/workflows/
+packer-manifest.json
