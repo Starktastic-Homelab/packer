@@ -1,4 +1,4 @@
-name: Format Packer files
+name: Format
 
 on:
   workflow_dispatch:

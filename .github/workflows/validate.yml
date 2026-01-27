@@ -33,4 +33,20 @@ jobs:
           PKR_VAR_proxmox_api_token_secret: 'secret'
         run: |
           packer init -force -upgrade .
-          packer validate .
+
+          echo "### 📦 Packer Validation Results" >> $GITHUB_STEP_SUMMARY
+          
+          set +e
+          OUTPUT=$(packer validate . 2>&1)
+          EXIT_CODE=$?
+          set -e
+
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "✅ **Syntax Valid**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Syntax Invalid**" >> $GITHUB_STEP_SUMMARY
+            echo '```term' >> $GITHUB_STEP_SUMMARY
+            echo "$OUTPUT" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
