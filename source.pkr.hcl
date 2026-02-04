@@ -3,7 +3,7 @@ source "proxmox-iso" "debian-13" {
   username                 = var.proxmox_api_token_id
   token                    = var.proxmox_api_token_secret
   node                     = var.proxmox_node
-  insecure_skip_tls_verify = true
+  insecure_skip_tls_verify = var.insecure_skip_tls_verify
 
   vm_id                   = var.vm_id
   vm_name                 = local.vm_name

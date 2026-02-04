@@ -24,16 +24,6 @@ jobs:
       - name: Run Packer fmt command
         run: packer fmt -recursive .
 
-      - name: Commit & push formatting changes
-        if: steps.fmt.outputs.changed_files != ''
-        run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-
-          git add .
-          git commit -m "[skip ci] style: packer fmt"
-          git push
-
       - name: Prettier
         uses: creyD/prettier_action@v4.6
         with:
@@ -45,6 +35,9 @@ jobs:
 
       - name: Run shfmt
         run: shfmt -i 2 -ci -s -w **/*.sh || true
+
+      - name: Run shellcheck
+        run: shellcheck scripts/*.sh
 
       - name: Commit changes
         uses: stefanzweifel/git-auto-commit-action@v7.1.0

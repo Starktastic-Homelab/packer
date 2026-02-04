@@ -1,0 +1,29 @@
+# Packer cache directory
+packer_cache/
+
+# Packer crash logs
+crash.log
+crash.*.log
+
+# General logs
+*.log
+
+# Packer plugin directory (auto-downloaded)
+.packer.d/
+
+# Local manifest (generated during builds)
+packer-manifest.json
+
+# Environment-specific variable overrides
+*.local.pkrvars.hcl
+
+# Editor directories
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
