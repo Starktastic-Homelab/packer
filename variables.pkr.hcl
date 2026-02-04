@@ -15,6 +15,12 @@ variable "proxmox_node" {
   default = "pve"
 }
 
+variable "insecure_skip_tls_verify" {
+  description = "Skip TLS verification for Proxmox API. Set to true only for self-signed certificates."
+  type        = bool
+  default     = false
+}
+
 variable "vm_id" {
   default = 900
 }
@@ -26,6 +32,11 @@ variable "iso_base_url" {
 variable "iso_name" {
   description = "Name of the Debian ISO to use for the build (debian-X.Y.Z-amd64-netinst.iso)"
   type        = string
+
+  validation {
+    condition     = can(regex("^debian-[0-9]+\\.[0-9]+\\.[0-9]+-amd64-netinst\\.iso$", var.iso_name))
+    error_message = "The iso_name must match the pattern 'debian-X.Y.Z-amd64-netinst.iso'."
+  }
 }
 
 variable "iso_storage_pool" {

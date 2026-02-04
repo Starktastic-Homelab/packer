@@ -17,6 +17,14 @@
       ],
       "datasourceTemplate": "github-tags",
       "depNameTemplate": "{{#if depName}}{{#if (containsString depName \"hashicorp/\")}}{{{replace \"hashicorp/\" \"hashicorp/packer-plugin-\" depName}}}{{else}}{{{depName}}}{{/if}}{{else}}hashicorp/packer{{/if}}"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/scripts/bootstrap\\.sh$/"],
+      "matchStrings": [
+        "https://github.com/(?<depName>strongtz/i915-sriov-dkms)/releases/download/(?<currentValue>[^/]+)/"
+      ],
+      "datasourceTemplate": "github-releases"
     }
   ],
   "packageRules": [

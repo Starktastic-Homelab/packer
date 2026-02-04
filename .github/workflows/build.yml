@@ -34,6 +34,7 @@ jobs:
           PKR_VAR_proxmox_api_url: ${{ vars.PROXMOX_API_URL }}
           PKR_VAR_proxmox_api_token_id: ${{ secrets.PROXMOX_API_TOKEN_ID }}
           PKR_VAR_proxmox_api_token_secret: ${{ secrets.PROXMOX_API_TOKEN_SECRET }}
+          PKR_VAR_insecure_skip_tls_verify: ${{ vars.INSECURE_SKIP_TLS_VERIFY }}
           PKR_VAR_timezone: ${{ vars.TIMEZONE }}
           PKR_VAR_apt_mirror: |
             {

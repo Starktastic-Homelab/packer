@@ -1,96 +1,163 @@
-# 📦 Homelab Packer: Debian Cloud-Init Template
+# homelab-packer
 
-   
+Packer templates for building Debian VM images on Proxmox VE. This repository automates the creation of cloud-init ready VM templates optimized for Kubernetes nodes with Intel SR-IOV GPU passthrough support.
 
-This repository automates the creation of a "Golden Image" for **Proxmox VE** using HashiCorp Packer.
+## Features
 
-It builds a **Debian** VM template designed specifically as a base for Kubernetes (K3s) nodes. It features a modernized networking stack, storage optimizations, and a fully automated GitOps supply chain.
+- **Debian 13 (Trixie)** base image with automated preseed installation
+- **Cloud-init integration** for dynamic VM configuration at deploy time
+- **Intel SR-IOV DKMS driver** pre-installed for GPU passthrough
+- **Netplan networking** with systemd-networkd and systemd-resolved
+- **Automated CI/CD** with GitHub Actions for building, validating, and ISO updates
+- **Renovate integration** for dependency and plugin updates
 
-## ✨ Key Features
+## Prerequisites
 
-  * **Modern Networking (Netplan):** The legacy `ifupdown` system is purged. The image uses `netplan.io` backed by `systemd-networkd` and `systemd-resolved`. This resolves common Cloud-Init race conditions and DNS issues on Proxmox.
-  * **Kubernetes Ready:**
-      * **Unique Identity:** Automatically resets `/etc/machine-id` on build. This ensures cloned nodes get unique DHCP leases and K3s Node IDs.
-      * **Dependencies:** Pre-installed with `open-iscsi`, `nfs-common`, and `qemu-guest-agent`.
-      * **Cloud-Native:** Configured with the `NoCloud` datasource for seamless Proxmox Cloud-Init integration.
-  * **Storage Optimized:** Disk is configured with `discard=true` (TRIM) enabled, ensuring the template remains small and cloned VMs utilize storage efficiently.
-  * **Automated Supply Chain:**
-      * **Weekly Checks:** A workflow monitors Debian mirrors for new ISO releases.
-      * **Auto-Updates:** If a new ISO is found, a PR is auto-generated.
-      * **Downstream Integration:** Upon a successful build, the pipeline pushes the new artifact manifest directly to the [Homelab Terraform Repository](https://github.com/MrStarktastic/homelab-terraform).
+### Proxmox VE Setup
 
-## 📂 Repository Structure
+1. **API Token**: Create a Proxmox API token with the following permissions:
+   - `VM.Allocate`
+   - `VM.Clone`
+   - `VM.Config.*`
+   - `VM.Audit`
+   - `VM.PowerMgmt`
+   - `Datastore.AllocateSpace`
+   - `Datastore.Audit`
+   - `Sys.Modify` (for ISO operations)
 
-```text
+2. **Storage Pools**: Ensure you have:
+   - An ISO storage pool (default: `local`)
+   - A disk storage pool (default: `local-zfs`)
+
+3. **Network**: A bridge interface configured (default: `vmbr0`)
+
+### Local Development
+
+- [Packer](https://www.packer.io/downloads) 1.10+
+- Network access to your Proxmox host
+- HTTP port 8000 accessible from Proxmox to the build machine
+
+## Repository Structure
+
+```
 .
-├── build.pkr.hcl            # Main build definition (Provisioners & Post-Processors)
-├── source.pkr.hcl           # VM hardware specs (VirtIO, Cloud-Init, Discard enabled)
-├── config.pkr.hcl           # Plugin configuration (HashiCorp Proxmox)
-├── variables.pkr.hcl        # Input variables definition
-├── debian.auto.pkrvars.hcl  # Variable overrides (ISO Version)
+├── .github/workflows/     # CI/CD workflows
+│   ├── build.yml          # Main build pipeline
+│   ├── check-debian-iso.yml # Automated ISO updates
+│   ├── format.yml         # Code formatting
+│   └── validate.yml       # PR validation
+├── cloud-init/            # Cloud-init configuration
+│   ├── cloud.cfg          # Main cloud-init config
+│   └── cloud.cfg.d/
+│       └── 99-pve.cfg     # Proxmox datasource config
+├── http/
+│   └── preseed.cfg.tmpl   # Debian preseed template
 ├── scripts/
-│   ├── bootstrap.sh         # The "Magic": Installs Netplan, resets IDs, hardens OS
-│   └── delete_builder_user.sh
-├── cloud-init/              # Cloud-Init config (NoCloud datasource)
-├── http/                    # Preseed configuration for unattended install
-└── .github/workflows/       # CI/CD Pipelines
+│   ├── bootstrap.sh       # VM provisioning script
+│   └── delete_builder_user.sh # Security cleanup
+├── build.pkr.hcl          # Build definition
+├── config.pkr.hcl         # Plugin requirements and locals
+├── source.pkr.hcl         # Proxmox source configuration
+├── variables.pkr.hcl      # Variable definitions
+├── debian.auto.pkrvars.hcl # ISO version (auto-loaded)
+└── renovate.json          # Dependency update config
 ```
 
-## 🛠️ Prerequisites
+## Configuration
 
-  * **Proxmox VE** (7.x or 8.x)
-  * **Packer** (v1.10+)
-  * **Proxmox API Token** (User must have permissions to Datastore, VM.Allocate, VM.Console)
+### Variables
 
-## 🚀 Usage
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `proxmox_api_url` | Proxmox API URL (e.g., `https://pve:8006/api2/json`) | **Required** |
+| `proxmox_api_token_id` | API token ID (e.g., `user@pam!token`) | **Required** |
+| `proxmox_api_token_secret` | API token secret | **Required** |
+| `proxmox_node` | Proxmox node name | `pve` |
+| `insecure_skip_tls_verify` | Skip TLS verification (for self-signed certs) | `false` |
+| `vm_id` | Template VM ID | `900` |
+| `iso_name` | Debian ISO filename | **Required** |
+| `iso_base_url` | Base URL for ISO downloads | `https://get.debian.org/images/release/current/amd64/iso-cd` |
+| `iso_storage_pool` | Proxmox storage for ISOs | `local` |
+| `disk_storage_pool` | Proxmox storage for VM disks | `local-zfs` |
+| `network_adapter_bridge` | Network bridge | `vmbr0` |
+| `runner_host_ip` | IP of the Packer host (for preseed HTTP) | `127.0.0.1` |
+| `timezone` | VM timezone | `US/Eastern` |
+| `builder_creds` | Temporary build user credentials | `{ username = "packer", password = "packer" }` |
+| `apt_mirror` | APT mirror configuration | US Debian mirror |
 
-### 1\. Configure Credentials
+### Local Build
 
-You can provide credentials via environment variables or a `secrets.auto.pkrvars.hcl` file (git-ignored):
+1. Create a variables file:
 
-```bash
-export PKR_VAR_proxmox_api_url="https://pve.example.com:8006/api2/json"
-export PKR_VAR_proxmox_api_token_id="packer@pve!token"
-export PKR_VAR_proxmox_api_token_secret="your-uuid-secret"
+```hcl
+# my.pkrvars.hcl
+proxmox_api_url          = "https://pve.local:8006/api2/json"
+proxmox_api_token_id     = "packer@pve!packer-token"
+proxmox_api_token_secret = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+proxmox_node             = "pve"
+runner_host_ip           = "192.168.1.100"
+insecure_skip_tls_verify = true  # Only if using self-signed certs
 ```
 
-### 2\. Build Manually
+2. Initialize and build:
 
 ```bash
-# Initialize plugins
 packer init .
-
-# Validate configuration
-packer validate .
-
-# Run the build
-packer build .
+packer build -var-file=my.pkrvars.hcl .
 ```
 
-## ⚙️ Configuration Deep Dive
+## GitHub Actions
 
-### The Bootstrapper (`scripts/bootstrap.sh`)
+### Required Secrets
 
-This script runs during the Packer build to transform a standard Debian install into a Cloud-Native template:
+| Secret | Description |
+|--------|-------------|
+| `PACKER_GITHUB_API_TOKEN` | GitHub token for downloading Packer plugins |
+| `PACKER_RUNNER_HOST_IP` | IP address of the self-hosted runner |
+| `PROXMOX_API_TOKEN_ID` | Proxmox API token ID |
+| `PROXMOX_API_TOKEN_SECRET` | Proxmox API token secret |
+| `ORG_DISPATCH_TOKEN` | Token for cross-repo dispatch (Terraform updates) |
 
-1.  **Installs Core Deps:** `curl`, `cloud-init`, `netplan.io`, `systemd-resolved`, `open-iscsi`.
-2.  **Purges Legacy Network:** Removes `ifupdown` to force Cloud-Init to render Netplan YAML.
-3.  **Links DNS:** Symlinks `/etc/resolv.conf` to `systemd-resolved`'s stub listener.
-4.  **Resets Machine ID:** Truncates `/etc/machine-id` to ensure uniqueness on cloning.
+### Required Variables
 
-### CI/CD Workflow
+| Variable | Description |
+|----------|-------------|
+| `PROXMOX_API_URL` | Proxmox API URL |
+| `TIMEZONE` | VM timezone |
+| `APT_MIRROR_PROTOCOL` | `http` or `https` |
+| `APT_MIRROR_COUNTRY` | `manual` for explicit mirror |
+| `APT_MIRROR_HOSTNAME` | Mirror hostname |
+| `APT_MIRROR_DIRECTORY` | Mirror path (e.g., `/debian`) |
+| `INSECURE_SKIP_TLS_VERIFY` | Set to `true` for self-signed certs |
 
-1.  **Check ISO (`check-debian-iso.yml`):** Runs weekly. Scrapes Debian.org. If `debian.auto.pkrvars.hcl` is outdated, it updates the file and creates a PR.
-2.  **Build & Push (`build.yml`):**
-      * Runs on a **Self-Hosted Runner** (inside the homelab).
-      * Builds the VM template.
-      * Generates a `packer-manifest.json`.
-      * **Triggers Downstream:** Clones the `homelab-terraform` repo, updates the manifest file there, and opens a PR to deploy the new image.
+### Workflows
 
-## 🔗 Related Repositories
+- **Build** (`build.yml`): Triggered on push to `main`. Builds the template, creates a GitHub release, and updates the Terraform repository with the new manifest.
 
-  * **Infrastructure:** [MrStarktastic/homelab-terraform](https://github.com/MrStarktastic/homelab-terraform) - Consumes the manifest produced by this repo to provision the cluster.
+- **Validate** (`validate.yml`): Runs `packer validate` on pull requests to catch configuration errors before merge.
 
-## 📄 License
+- **Format** (`format.yml`): Auto-formats Packer HCL, YAML, JSON, and shell scripts on pull requests.
 
-This project is licensed under the MIT License.
+- **Check Debian ISO** (`check-debian-iso.yml`): Weekly check for new Debian releases, automatically creates PRs to update the ISO version.
+
+## What Gets Built
+
+The resulting VM template includes:
+
+- **Debian 13 (Trixie)** minimal installation
+- **Cloud-init** configured with Proxmox datasource
+- **Netplan** with systemd-networkd/resolved
+- **Intel SR-IOV DKMS driver** for GPU passthrough
+- **GRUB** configured with `i915.enable_guc=3` and `module_blacklist=xe`
+- **Clean machine ID** for proper clone uniqueness
+- **No default users** (builder user is removed post-build)
+
+## Related Repositories
+
+- [homelab-terraform](../homelab-terraform) - Terraform configurations that consume these templates
+- [homelab-ansible](../homelab-ansible) - Ansible playbooks for post-deployment configuration
+- [homelab-platform](../homelab-platform) - Kubernetes platform applications
+
+## License
+
+MIT
