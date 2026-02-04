@@ -24,7 +24,8 @@
       "matchStrings": [
         "https://github.com/(?<depName>strongtz/i915-sriov-dkms)/releases/download/(?<currentValue>[^/]+)/"
       ],
-      "datasourceTemplate": "github-releases"
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "loose"
     }
   ],
   "packageRules": [
