@@ -30,8 +30,9 @@ build {
 
   post-processor "manifest" {
     custom_data = {
-      vm_name = local.vm_name
-      git_tag = "v${join(".", regex("(\\d+\\.\\d+\\.\\d+)-(\\d+)", local.vm_name))}"
+      vm_name            = local.vm_name
+      git_tag            = "v${join(".", regex("(\\d+\\.\\d+\\.\\d+)-(\\d+)", local.vm_name))}"
+      i915_sriov_version = regex("i915-sriov-dkms/releases/download/([0-9.]+)/", file("scripts/bootstrap.sh"))[0]
     }
   }
 }
