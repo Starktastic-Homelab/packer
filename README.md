@@ -130,6 +130,7 @@ packer build -var-file=my.pkrvars.hcl .
 | `validate.yml` | Pull requests | Validates Packer configuration |
 | `format.yml` | Pull requests | Checks HCL formatting |
 | `check-debian-iso.yml` | Weekly schedule | Auto-updates Debian ISO version |
+| `check-host-driver.yml` | PRs modifying `bootstrap.sh` | Ensures Proxmox host SR-IOV driver is updated first |
 
 ### Required Secrets
 
@@ -221,6 +222,42 @@ flowchart TD
 | Intel SR-IOV driver fails | Verify kernel headers available, check `/var/lib/dkms/` logs |
 | Cloud-init not working | Ensure machine-id was reset, verify datasource config |
 | Preseed HTTP timeout | Verify `runner_host_ip` is reachable from Proxmox |
+
+## Intel SR-IOV Driver Coordination
+
+The Intel SR-IOV DKMS driver must be installed on both the **Proxmox host** (for VF creation) and the **VM template** (for VF passthrough). The versions must be kept in sync.
+
+```mermaid
+flowchart LR
+    subgraph Renovate["Renovate Detects Update"]
+        R[New Driver Version]
+    end
+    
+    R -->|Creates PR| AP[Ansible PR<br/>Host Driver]
+    R -->|Creates PR| PP[Packer PR<br/>VM Driver]
+    
+    subgraph Merge Order
+        AP -->|1. Merge First| AW[Ansible Workflow<br/>Updates Host]
+        AW -->|2. Host Reboots| Ready[Host Ready]
+        Ready -->|3. Check Passes| PP
+        PP -->|4. Merge| PB[Packer Build<br/>New Template]
+    end
+    
+    style Renovate fill:#4299e1
+    style AP fill:#48bb78
+    style PP fill:#ed8936
+```
+
+### Merge Order Enforcement
+
+The `check-host-driver.yml` workflow runs as a required PR check on any changes to `scripts/bootstrap.sh`. It:
+
+1. **Extracts** the proposed driver version from the PR
+2. **Fetches** the current driver version from Ansible's `main` branch
+3. **Compares** the versions
+4. **Fails** with a helpful comment if the Proxmox host hasn't been updated yet
+
+This ensures VMs are never built with a driver version that's ahead of the host.
 
 ## Related Repositories
 
