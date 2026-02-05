@@ -1,0 +1,80 @@
+name: Check Host Driver Version
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'scripts/bootstrap.sh'
+
+jobs:
+  check-driver-sync:
+    name: Verify Proxmox host driver is updated
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v6
+
+      - name: Extract driver version from PR
+        id: pr-version
+        run: |
+          VERSION=$(grep -oP 'i915-sriov-dkms/releases/download/\K[0-9.]+' scripts/bootstrap.sh | head -1)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "PR proposes driver version: $VERSION"
+
+      - name: Fetch Ansible host driver version
+        id: ansible-version
+        run: |
+          VERSION=$(curl -s "https://raw.githubusercontent.com/Starktastic-Homelab/ansible/main/group_vars/proxmox_hosts/i915_sriov.yml" | grep -oP 'i915_sriov_version:\s*"\K[0-9.]+')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Ansible main branch has version: $VERSION"
+
+      - name: Compare versions
+        id: compare
+        run: |
+          PR_VERSION="${{ steps.pr-version.outputs.version }}"
+          ANSIBLE_VERSION="${{ steps.ansible-version.outputs.version }}"
+          
+          if [[ "$PR_VERSION" == "$ANSIBLE_VERSION" ]]; then
+            echo "✅ Versions match! Proxmox host is ready for this update."
+            echo "match=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Version mismatch!"
+            echo "   PR version: $PR_VERSION"
+            echo "   Ansible version: $ANSIBLE_VERSION"
+            echo "match=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment on version mismatch
+        if: steps.compare.outputs.match == 'false'
+        uses: marocchino/sticky-pull-request-comment@v2.9.4
+        with:
+          header: i915-driver-check
+          message: |
+            ## ⚠️ Proxmox Host Driver Version Mismatch
+            
+            This PR updates the VM driver to **`${{ steps.pr-version.outputs.version }}`**, but the Proxmox host is still on **`${{ steps.ansible-version.outputs.version }}`**.
+            
+            **The host must be updated first** to ensure SR-IOV compatibility.
+            
+            ### Action Required
+            1. Check for an open [Ansible PR for i915-sriov-dkms](https://github.com/Starktastic-Homelab/ansible/pulls?q=is%3Apr+is%3Aopen+i915)
+            2. Merge the Ansible PR first (this will update and reboot the Proxmox host)
+            3. Wait for the host to come back online
+            4. Re-run this check
+            
+            ---
+            _This check will pass once the Ansible `main` branch has `i915_sriov_version: "${{ steps.pr-version.outputs.version }}"`_
+
+      - name: Remove comment on success
+        if: steps.compare.outputs.match == 'true'
+        uses: marocchino/sticky-pull-request-comment@v2.9.4
+        with:
+          header: i915-driver-check
+          delete: true
+
+      - name: Fail if versions don't match
+        if: steps.compare.outputs.match == 'false'
+        run: |
+          echo "::error::Proxmox host driver must be updated before merging this PR"
+          exit 1
