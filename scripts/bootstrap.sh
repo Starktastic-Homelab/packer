@@ -24,6 +24,7 @@ apt install -y --install-recommends \
   linux-headers-amd64 \
   cloud-init \
   nfs-common \
+  firmware-misc-nonfree \
   intel-media-va-driver-non-free \
   vainfo
 
@@ -31,7 +32,7 @@ apt install -y --install-recommends \
 # Install Intel SR-IOV driver
 # ----------------------------
 echo 'Installing Intel SR-IOV DKMS Driver...'
-curl -L -s -S -o i915.deb "https://github.com/strongtz/i915-sriov-dkms/releases/download/2026.02.04/i915-sriov-dkms_2025.12.10_amd64.deb"
+curl -L -s -S -o i915.deb "https://github.com/strongtz/i915-sriov-dkms/releases/download/2026.02.04/i915-sriov-dkms_2026.02.04_amd64.deb"
 dpkg -i i915.deb && rm i915.deb
 
 # ----------------------------
