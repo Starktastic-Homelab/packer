@@ -11,6 +11,8 @@ jobs:
   check-driver-sync:
     name: Verify Proxmox host driver is updated
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
       - name: Checkout PR
         uses: actions/checkout@v6
