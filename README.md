@@ -1,8 +1,8 @@
 # Homelab Packer
 
-[![Build](https://github.com/starktastic/homelab-packer/actions/workflows/build.yml/badge.svg)](https://github.com/starktastic/homelab-packer/actions/workflows/build.yml)
-[![Validate](https://github.com/starktastic/homelab-packer/actions/workflows/validate.yml/badge.svg)](https://github.com/starktastic/homelab-packer/actions/workflows/validate.yml)
-[![ISO Check](https://github.com/starktastic/homelab-packer/actions/workflows/check-debian-iso.yml/badge.svg)](https://github.com/starktastic/homelab-packer/actions/workflows/check-debian-iso.yml)
+[![Build](https://github.com/starktastic/packer/actions/workflows/build.yml/badge.svg)](https://github.com/starktastic/packer/actions/workflows/build.yml)
+[![Validate](https://github.com/starktastic/packer/actions/workflows/validate.yml/badge.svg)](https://github.com/starktastic/packer/actions/workflows/validate.yml)
+[![ISO Check](https://github.com/starktastic/packer/actions/workflows/check-debian-iso.yml/badge.svg)](https://github.com/starktastic/packer/actions/workflows/check-debian-iso.yml)
 ![Debian](https://img.shields.io/badge/Debian-13%20Trixie-A81D33?logo=debian)
 ![Proxmox](https://img.shields.io/badge/Proxmox-VE-E57000?logo=proxmox)
 
@@ -22,7 +22,7 @@ flowchart LR
     end
     
     Template --> Manifest[packer-manifest.json]
-    Manifest -->|Triggers PR| Terraform[homelab-terraform]
+    Manifest -->|Triggers PR| Terraform[terraform]
     
     style Packer fill:#2d3748,stroke:#4299e1
     style Terraform fill:#805ad5,stroke:#d6bcfa
@@ -40,7 +40,7 @@ flowchart LR
 ## Repository Structure
 
 ```
-homelab-packer/
+packer/
 ├── build.pkr.hcl           # Build definition with provisioners
 ├── config.pkr.hcl          # Plugin requirements and locals
 ├── source.pkr.hcl          # Proxmox ISO source configuration
@@ -188,7 +188,7 @@ The build produces a `packer-manifest.json` containing:
 }
 ```
 
-This manifest is consumed by [homelab-terraform](https://github.com/starktastic/homelab-terraform) to provision VMs using the latest template.
+This manifest is consumed by [terraform](https://github.com/starktastic/terraform) to provision VMs using the latest template.
 
 ## Pipeline Integration
 
@@ -199,17 +199,17 @@ flowchart TD
         Packer["📦 Packer<br/>VM Template"]
         Terraform["🏗️ Terraform<br/>VM Provisioning"]
         Ansible["⚙️ Ansible<br/>K3s Cluster"]
-        Platform["🚀 Platform<br/>GitOps Apps"]
+        Apps["🚀 Apps<br/>GitOps Apps"]
     end
     
     Packer -->|manifest.json| Terraform
     Terraform -->|dispatch| Ansible
-    Ansible -->|bootstrap| Platform
+    Ansible -->|bootstrap| Apps
     
     style Packer fill:#4299e1,stroke:#2b6cb0
     style Terraform fill:#805ad5,stroke:#553c9a
     style Ansible fill:#48bb78,stroke:#276749
-    style Platform fill:#ed8936,stroke:#c05621
+    style Apps fill:#ed8936,stroke:#c05621
 ```
 
 ## Troubleshooting
@@ -263,9 +263,9 @@ This ensures VMs are never built with a driver version that's ahead of the host.
 
 | Repository | Description |
 |------------|-------------|
-| [homelab-terraform](https://github.com/starktastic/homelab-terraform) | VM provisioning with Terraform |
-| [homelab-ansible](https://github.com/starktastic/homelab-ansible) | K3s cluster configuration |
-| [homelab-platform](https://github.com/starktastic/homelab-platform) | GitOps application definitions |
+| [terraform](https://github.com/starktastic/terraform) | VM provisioning with Terraform |
+| [ansible](https://github.com/starktastic/ansible) | K3s cluster configuration |
+| [apps](https://github.com/starktastic/apps) | GitOps application definitions |
 
 ## License
 
