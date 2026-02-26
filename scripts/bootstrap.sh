@@ -53,6 +53,12 @@ rm -f /etc/resolv.conf
 ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 
 # ----------------------------
+# Remove ModemManager (interferes with Zigbee USB serial adapters)
+# ----------------------------
+echo 'Removing ModemManager...'
+apt purge -y modemmanager || true
+
+# ----------------------------
 # Clean and remove unnecessary packages
 # ----------------------------
 echo 'Removing unnecessary packages...'
