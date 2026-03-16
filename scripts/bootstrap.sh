@@ -24,6 +24,7 @@ apt install -y --install-recommends \
   linux-headers-amd64 \
   cloud-init \
   nfs-common \
+  open-iscsi \
   firmware-misc-nonfree \
   intel-media-va-driver-non-free \
   vainfo
