@@ -1,1 +1,1 @@
-iso_name = "debian-13.3.0-amd64-netinst.iso"
+iso_name = "debian-13.4.0-amd64-netinst.iso"
