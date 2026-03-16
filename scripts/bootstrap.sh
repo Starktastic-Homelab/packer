@@ -30,6 +30,12 @@ apt install -y --install-recommends \
   vainfo
 
 # ----------------------------
+# Enable iSCSI initiator daemon
+# ----------------------------
+echo 'Enabling iscsid...'
+systemctl enable iscsid
+
+# ----------------------------
 # Install Intel SR-IOV driver
 # ----------------------------
 echo 'Installing Intel SR-IOV DKMS Driver...'
