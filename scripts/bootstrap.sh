@@ -24,16 +24,9 @@ apt install -y --install-recommends \
   linux-headers-amd64 \
   cloud-init \
   nfs-common \
-  open-iscsi \
   firmware-misc-nonfree \
   intel-media-va-driver-non-free \
   vainfo
-
-# ----------------------------
-# Enable iSCSI initiator daemon
-# ----------------------------
-echo 'Enabling iscsid...'
-systemctl enable iscsid
 
 # ----------------------------
 # Install Intel SR-IOV driver
