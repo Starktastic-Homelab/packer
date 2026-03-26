@@ -228,27 +228,6 @@ flowchart TB
 
 The `check-host-driver.yml` workflow acts as a **merge gate**: it extracts the driver version from the PR, compares it against Ansible's `main` branch, and **fails with a descriptive comment** if the Proxmox host hasn't been updated yet — ensuring VMs are never built with a driver version ahead of the hypervisor.
 
-## Pipeline Position
-
-This repository is the **entry point** of the fully automated homelab pipeline:
-
-```mermaid
-flowchart LR
-    Packer["📦 Packer\nVM Template"]
-    Terraform["🏗️ Terraform\nInfrastructure"]
-    Ansible["⚙️ Ansible\nK3s Cluster"]
-    Apps["🚀 Apps\nGitOps"]
-
-    Packer -- "manifest.json\nauto-creates PR" --> Terraform
-    Terraform -- "repository_dispatch\non apply" --> Ansible
-    Ansible -- "bootstraps\nArgoCD" --> Apps
-
-    style Packer fill:#4299e1,stroke:#2b6cb0,color:#fff
-    style Terraform fill:#805ad5,stroke:#b794f4,color:#fff
-    style Ansible fill:#48bb78,stroke:#276749,color:#fff
-    style Apps fill:#ed8936,stroke:#dd6b20,color:#fff
-```
-
 ## Troubleshooting
 
 | Issue | Solution |
