@@ -49,33 +49,28 @@ Every template is built through a deterministic 4-stage pipeline:
 
 ```mermaid
 flowchart LR
-    subgraph "Stage 1: Preseed"
-        A[Debian Netinst ISO] --> B[Automated Installer]
-        B --> C[Base OS + SSH + QEMU Agent]
+    subgraph preseed["Stage 1 · Preseed"]
+        A([Debian ISO]) ==> B[Automated\nInstaller] ==> C[Base OS + SSH\n+ QEMU Agent]
     end
 
-    subgraph "Stage 2: Bootstrap"
-        C --> D[Package Upgrades]
-        D --> E[Intel SR-IOV Driver]
-        E --> F[Netplan Migration]
-        F --> G[GRUB Hardening]
+    subgraph bootstrap["Stage 2 · Bootstrap"]
+        C ==> D[Package\nUpgrades] ==> E[SR-IOV\nDriver] ==> F[Netplan\nMigration] ==> G[GRUB\nHardening]
     end
 
-    subgraph "Stage 3: Cloud-Init"
-        G --> H[Datasource Config]
-        H --> I[Default User Setup]
-        I --> J[Module Ordering]
+    subgraph cloudinit["Stage 3 · Cloud-Init"]
+        G ==> H[Datasource\nConfig] ==> I[Default User\nSetup] ==> J[Module\nOrdering]
     end
 
-    subgraph "Stage 4: Finalize"
-        J --> K[Remove Build User]
-        K --> L[Seal as Template]
-        L --> M[Generate Manifest]
+    subgraph finalize["Stage 4 · Finalize"]
+        J ==> K[Remove\nBuild User] ==> L[(Seal as\nTemplate)] ==> M>Manifest JSON]
     end
 
-    style A fill:#A81D33,color:#fff
-    style L fill:#E57000,color:#fff
-    style M fill:#02A8EF,color:#fff
+    classDef input fill:#A81D33,stroke:#8B1728,color:#fff
+    classDef store fill:#E57000,stroke:#CC6300,color:#fff
+    classDef output fill:#02A8EF,stroke:#0196D4,color:#fff
+    class A input
+    class L store
+    class M output
 ```
 
 | Stage | Purpose | Key Actions |
@@ -138,26 +133,29 @@ Five GitHub Actions workflows automate the full lifecycle:
 
 ```mermaid
 flowchart TD
-    subgraph "PR Phase"
-        PR[Pull Request] --> V[validate.yml\nPacker init + validate]
+    subgraph pr["PR Phase"]
+        PR([Pull Request]) --> V[validate.yml\nPacker init + validate]
         PR --> F[format.yml\npacker fmt · Prettier\nshfmt · shellcheck]
-        PR --> DRV[check-host-driver.yml\nVM ↔ Host driver sync]
+        PR --> DRV{{check-host-driver.yml\nVM ↔ Host driver sync}}
     end
 
-    subgraph "Merge Phase"
-        M[Merge to Main] --> B[build.yml\nBuild template on Proxmox]
-        B --> REL[Create GitHub Release]
-        B --> TF[Push manifest to\nTerraform repo as PR]
+    subgraph merge["Merge Phase"]
+        M([Merge to Main]) ==> B[build.yml\nBuild template\non Proxmox]
+        B ==> REL>GitHub Release]
+        B ==> TF>Terraform PR\nwith manifest]
     end
 
-    subgraph "Scheduled"
-        CRON[Every Friday] --> ISO[check-debian-iso.yml\nCheck for new Debian release]
-        ISO -->|New version found| PR2[Auto-create PR]
+    subgraph sched["Scheduled"]
+        CRON((Every\nFriday)) --> ISO[check-debian-iso.yml\nNew Debian release?]
+        ISO -.->|New version| PR2>Auto-create PR]
     end
 
-    style B fill:#02A8EF,color:#fff
-    style TF fill:#7B42BC,color:#fff
-    style DRV fill:#E57000,color:#fff
+    classDef build fill:#02A8EF,stroke:#0196D4,color:#fff
+    classDef dispatch fill:#7B42BC,stroke:#6A35A3,color:#fff
+    classDef gate fill:#E57000,stroke:#CC6300,color:#fff
+    class B build
+    class TF dispatch
+    class DRV gate
 ```
 
 | Workflow | Trigger | Purpose |
@@ -180,14 +178,18 @@ This repo is the **entry point** of a 4-stage infrastructure pipeline:
 
 ```mermaid
 flowchart LR
-    P["📦 Packer\nBuild Template"] -->|manifest.json| T["🏗️ Terraform\nProvision VMs"]
-    T -->|repository_dispatch| A["⚙️ Ansible\nConfigure Cluster"]
-    A -->|ArgoCD bootstrap| K["☸️ Apps\nDeploy Services"]
+    P(["📦 Packer\nBuild Template"]) ==>|manifest.json| T(["🏗️ Terraform\nProvision VMs"])
+    T ==>|repository_dispatch| A(["⚙️ Ansible\nConfigure Cluster"])
+    A ==>|ArgoCD bootstrap| K(["☸️ Apps\nDeploy Services"])
 
-    style P fill:#02A8EF,color:#fff
-    style T fill:#7B42BC,color:#fff
-    style A fill:#EE0000,color:#fff
-    style K fill:#326CE5,color:#fff
+    classDef packer fill:#02A8EF,stroke:#0196D4,color:#fff
+    classDef terraform fill:#7B42BC,stroke:#6A35A3,color:#fff
+    classDef ansible fill:#EE0000,stroke:#CC0000,color:#fff
+    classDef apps fill:#326CE5,stroke:#2B5FC2,color:#fff
+    class P packer
+    class T terraform
+    class A ansible
+    class K apps
 ```
 
 1. **Packer** builds a template and generates `packer-manifest.json`
