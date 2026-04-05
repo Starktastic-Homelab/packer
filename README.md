@@ -216,9 +216,9 @@ This repo is the **entry point** of a 4-stage infrastructure pipeline:
 
 ```mermaid
 flowchart LR
-    P(["📦 Packer\nBuild Template"]) ==>|manifest.json| T(["🏗️ Terraform\nProvision VMs"])
-    T ==>|repository_dispatch| A(["⚙️ Ansible\nConfigure Cluster"])
-    A ==>|ArgoCD bootstrap| K(["☸️ Apps\nDeploy Services"])
+    P(["📦 Packer\nBuild Template"]) ==>|"manifest PR"| T(["🏗️ Terraform\nProvision VMs"])
+    T ==>|"repository dispatch"| A(["⚙️ Ansible\nConfigure Cluster"])
+    A ==>|"App-of-Apps"| K(["☸️ Apps\nDeploy Services"])
 
     classDef packer fill:#02A8EF,stroke:#0196D4,color:#fff
     classDef terraform fill:#7B42BC,stroke:#6A35A3,color:#fff
