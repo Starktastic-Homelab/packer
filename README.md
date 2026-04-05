@@ -168,7 +168,45 @@ flowchart TD
 
 ### Driver Version Synchronization
 
-A critical safety check ensures the **Proxmox host always has a driver version ≥ the VM template's driver**. The `check-host-driver` workflow cross-references this repo's `bootstrap.sh` with the Ansible repo's driver version and blocks the PR if the host hasn't been updated first.
+A critical safety check ensures the **Proxmox host always has a driver version ≥ the VM template's driver**. When Renovate detects a new driver release, it opens PRs in both this repo and the Ansible repo simultaneously — but they must be merged in the correct order:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant RN as Renovate
+    participant AN as Ansible Repo
+    participant PVE as Proxmox Host
+    participant PK as Packer Repo
+    participant CI as check-host-driver
+
+    RN->>AN: Open PR — bump host driver
+    RN->>PK: Open PR — bump VM driver
+
+    rect rgb(238, 0, 0)
+    Note over AN,PVE: Step 1 — Upgrade host first
+    AN->>AN: Merge driver PR
+    AN->>PVE: i915-sriov-upgrade workflow
+    PVE->>PVE: Install DKMS + GRUB params
+    PVE->>PVE: Delayed reboot (60s)
+    PVE-->>AN: Host online with new driver
+    end
+
+    rect rgb(50, 108, 229)
+    Note over PK,CI: Step 2 — Unblock Packer
+    PK->>CI: PR triggers check-host-driver
+    CI->>AN: Fetch driver version from main
+    CI->>PK: Compare with PR's bootstrap.sh
+    CI-->>PK: ✓ Versions match — PR unblocked
+    end
+
+    rect rgb(123, 66, 188)
+    Note over PK: Step 3 — Build matching template
+    PK->>PK: Merge PR → build workflow
+    PK->>PK: New template with matching driver
+    end
+```
+
+If a developer tries to merge the Packer PR first, `check-host-driver` fails with a descriptive comment explaining which Ansible PR must be merged first — preventing VMs from ever being built with a driver version ahead of the hypervisor.
 
 ---
 
