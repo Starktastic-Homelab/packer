@@ -1,251 +1,230 @@
-# Homelab Packer
+<div align="center">
 
-[![Build](https://github.com/Starktastic-Homelab/packer/actions/workflows/build.yml/badge.svg)](https://github.com/Starktastic-Homelab/packer/actions/workflows/build.yml)
-[![Validate](https://github.com/Starktastic-Homelab/packer/actions/workflows/validate.yml/badge.svg)](https://github.com/Starktastic-Homelab/packer/actions/workflows/validate.yml)
-[![ISO Check](https://github.com/Starktastic-Homelab/packer/actions/workflows/check-debian-iso.yml/badge.svg)](https://github.com/Starktastic-Homelab/packer/actions/workflows/check-debian-iso.yml)
-![Debian](https://img.shields.io/badge/Debian-13%20Trixie-A81D33?logo=debian&logoColor=white)
-![Proxmox](https://img.shields.io/badge/Proxmox-VE-E57000?logo=proxmox&logoColor=white)
-![Packer](https://img.shields.io/badge/Packer-HCL-02A8EF?logo=packer&logoColor=white)
+# 📦 Packer — Golden Image Factory
 
-Production-ready Debian 13 (Trixie) VM template builder for Proxmox VE — cloud-init provisioned, Intel SR-IOV GPU passthrough pre-configured, and fully automated through CI/CD.
+**Automated, immutable Debian VM template builds for Proxmox VE**
+
+[![Packer](https://img.shields.io/badge/Packer-02A8EF?style=for-the-badge&logo=packer&logoColor=white)](https://www.packer.io/)
+[![Proxmox](https://img.shields.io/badge/Proxmox-E57000?style=for-the-badge&logo=proxmox&logoColor=white)](https://www.proxmox.com/)
+[![Debian](https://img.shields.io/badge/Debian_Trixie-A81D33?style=for-the-badge&logo=debian&logoColor=white)](https://www.debian.org/)
+[![HCL](https://img.shields.io/badge/HCL-7B42BC?style=for-the-badge&logo=terraform&logoColor=white)](#)
+
+*The first stage of a fully automated infrastructure pipeline — from bare ISO to production-ready VM template*
+
+</div>
+
+---
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Build Pipeline](#build-pipeline)
+- [What Gets Built](#what-gets-built)
+- [Configuration](#configuration)
+- [CI/CD Automation](#cicd-automation)
+- [Cross-Repo Integration](#cross-repo-integration)
+- [Prerequisites](#prerequisites)
+- [Usage](#usage)
+- [License \& Contributing](#license--contributing)
+
+---
 
 ## Overview
 
-This is the first stage of the [Starktastic Homelab](https://github.com/Starktastic-Homelab) pipeline. It builds golden VM templates on Proxmox VE that serve as the immutable foundation for every Kubernetes node in the cluster. Each template ships with Intel SR-IOV DKMS drivers for hardware GPU passthrough, a modern systemd-networkd/Netplan network stack, and a clean cloud-init configuration — ready to be cloned and provisioned by [Terraform](https://github.com/Starktastic-Homelab/terraform) in the next pipeline stage.
+This repository produces **production-ready Debian VM templates** on Proxmox VE. Each template is a sealed, immutable "golden image" that includes:
+
+- **Cloud-init** for zero-touch provisioning when cloned
+- **Intel i915 SR-IOV DKMS driver** for GPU virtual function passthrough
+- **Modern networking** (systemd-networkd + netplan) replacing legacy ifupdown
+- **Hardened GRUB** with GPU and security parameters baked in
+- **Clean machine identity** for unique clone provisioning
+
+When a build completes, it automatically generates a manifest that triggers downstream Terraform provisioning — no manual steps required.
+
+---
+
+## Build Pipeline
+
+Every template is built through a deterministic 4-stage pipeline:
 
 ```mermaid
 flowchart LR
-    subgraph build["Packer Build"]
-        direction LR
-        ISO["Debian ISO"] --> Preseed["Preseed\nInstall"]
-        Preseed --> Bootstrap["bootstrap.sh\n─────────\nSR-IOV Driver\nNetplan\nGRUB Config"]
-        Bootstrap --> CloudInit["Cloud-Init\nConfig"]
-        CloudInit --> Cleanup["Cleanup\n─────────\nRemove User\nReset IDs"]
+    subgraph "Stage 1: Preseed"
+        A[Debian Netinst ISO] --> B[Automated Installer]
+        B --> C[Base OS + SSH + QEMU Agent]
     end
 
-    Cleanup --> Template[("VM Template\non Proxmox")]
-    Template --> Manifest["packer-manifest.json"]
-    Manifest -- "Auto-creates PR" --> Terraform["Terraform Repo"]
-
-    style build fill:#1a1b27,stroke:#4299e1,color:#e2e8f0
-    style Template fill:#4299e1,stroke:#2b6cb0,color:#fff
-    style Manifest fill:#2d3748,stroke:#a0aec0,color:#e2e8f0
-    style Terraform fill:#805ad5,stroke:#b794f4,color:#fff
-```
-
-## Features
-
-- **Debian 13 (Trixie)** — Latest stable Debian with a modern kernel
-- **Cloud-Init Ready** — Full cloud-init integration with Proxmox NoCloud/ConfigDrive datasources
-- **Intel SR-IOV GPU** — Pre-installed i915 DKMS driver for virtual function GPU passthrough
-- **Netplan + systemd-networkd** — Modern network stack replacing legacy ifupdown
-- **Security Hardened** — Builder user purged, machine-id reset, no root login, minimal packages
-- **Renovate Managed** — Debian ISO version and SR-IOV driver version auto-updated via PRs
-- **Manifest Output** — Produces `packer-manifest.json` consumed downstream by Terraform
-
-## Repository Structure
-
-```
-packer/
-├── build.pkr.hcl              # Build pipeline — provisioners & post-processor
-├── config.pkr.hcl             # Plugin requirements & template name generation
-├── source.pkr.hcl             # Proxmox ISO source — VM hardware & boot config
-├── variables.pkr.hcl          # All variable definitions with defaults & validation
-├── debian.auto.pkrvars.hcl    # Current Debian ISO version (Renovate-managed)
-├── cloud-init/
-│   ├── cloud.cfg              # Cloud-init module ordering & default user config
-│   └── cloud.cfg.d/
-│       └── 99-pve.cfg         # Proxmox datasource priority (NoCloud, ConfigDrive)
-├── http/
-│   └── preseed.cfg.tmpl       # Templated Debian preseed for unattended install
-└── scripts/
-    ├── bootstrap.sh           # Post-install provisioning (driver, network, GRUB)
-    └── delete_builder_user.sh # Removes temporary build user & sudoers entry
-```
-
-## Build Process
-
-The build executes four provisioners in sequence, producing a clean VM template from a stock Debian ISO:
-
-```mermaid
-flowchart TD
-    A["Boot Debian ISO via Preseed"] --> B["bootstrap.sh"]
-
-    subgraph B["bootstrap.sh — Post-Install Provisioning"]
-        direction TB
-        B1["Upgrade all packages"] --> B2["Install build deps & Intel media drivers"]
-        B2 --> B3["Install Intel SR-IOV DKMS driver"]
-        B3 --> B4["Migrate to Netplan + systemd-networkd"]
-        B4 --> B5["Remove ModemManager\n(Zigbee USB conflict)"]
-        B5 --> B6["Configure GRUB\ni915.enable_guc=3\nmodule_blacklist=xe"]
-        B6 --> B7["Reset machine-id\n(clone uniqueness)"]
-        B7 --> B8["Clean cloud-init state"]
+    subgraph "Stage 2: Bootstrap"
+        C --> D[Package Upgrades]
+        D --> E[Intel SR-IOV Driver]
+        E --> F[Netplan Migration]
+        F --> G[GRUB Hardening]
     end
 
-    B8 --> C["Copy cloud-init configs\nto /etc/cloud/"]
-    C --> D["Remove builder user\n& sudoers entry"]
-    D --> E["Convert to Proxmox Template"]
-    E --> F["Generate packer-manifest.json"]
+    subgraph "Stage 3: Cloud-Init"
+        G --> H[Datasource Config]
+        H --> I[Default User Setup]
+        I --> J[Module Ordering]
+    end
 
-    style A fill:#4299e1,stroke:#2b6cb0,color:#fff
-    style B fill:#1a1b27,stroke:#4299e1,color:#e2e8f0
-    style E fill:#2d3748,stroke:#a0aec0,color:#e2e8f0
-    style F fill:#48bb78,stroke:#276749,color:#fff
+    subgraph "Stage 4: Finalize"
+        J --> K[Remove Build User]
+        K --> L[Seal as Template]
+        L --> M[Generate Manifest]
+    end
+
+    style A fill:#A81D33,color:#fff
+    style L fill:#E57000,color:#fff
+    style M fill:#02A8EF,color:#fff
 ```
 
-### What Gets Built
+| Stage | Purpose | Key Actions |
+|-------|---------|-------------|
+| **Preseed** | Unattended Debian install from ISO | Locale, partitioning, base packages, temporary build user |
+| **Bootstrap** | Post-install hardening & drivers | SR-IOV DKMS, netplan migration, GRUB params, firmware cleanup |
+| **Cloud-Init** | Provisioning framework | Proxmox datasources, default user, module pipeline |
+| **Finalize** | Seal & export | Remove build user, convert to template, emit manifest JSON |
 
-The resulting template is a minimal, hardened Debian image:
+---
 
-| Layer | Details |
-|-------|---------|
-| **OS** | Debian 13 (Trixie) — single root partition, UEFI + GRUB |
-| **Cloud-Init** | Proxmox-compatible datasources (NoCloud, ConfigDrive) |
-| **Network** | Netplan → systemd-networkd + systemd-resolved |
-| **GPU** | Intel i915 SR-IOV DKMS driver, GuC firmware enabled |
-| **GRUB** | `i915.enable_guc=3 module_blacklist=xe`, hidden timeout |
-| **Packages** | qemu-guest-agent, openssh-server, nfs-common, vainfo |
-| **Users** | None — builder user removed, root disabled |
-| **Identity** | `/etc/machine-id` truncated for unique clones |
+## What Gets Built
 
-## Output
+The output is a Proxmox VM template with these properties:
 
-The build produces a `packer-manifest.json` with metadata consumed by [Terraform](https://github.com/Starktastic-Homelab/terraform):
+| Property | Value |
+|----------|-------|
+| **Guest OS** | Debian Trixie (latest stable) |
+| **Machine Type** | q35 (UEFI-ready) |
+| **SCSI Controller** | virtio-scsi-pci |
+| **Disk** | Thin-provisioned on ZFS with TRIM |
+| **Network** | Virtio NIC with netplan/systemd-networkd |
+| **GPU Support** | Intel i915 SR-IOV DKMS (GuC enabled, `xe` driver blacklisted) |
+| **Provisioning** | Cloud-init (NoCloud + ConfigDrive datasources) |
+| **Root Login** | Disabled — sudo-capable default user only |
 
-```json
-{
-  "builds": [{
-    "custom_data": {
-      "vm_name": "packer-debian-13.4.0-20260321165557",
-      "git_tag": "v13.4.0.20260321165557",
-      "i915_sriov_version": "2026.03.05"
-    }
-  }]
-}
-```
-
-When a build completes on `main`, the CI workflow **automatically creates a PR** in the Terraform repo with the updated manifest — advancing the pipeline without manual intervention.
+---
 
 ## Configuration
 
-### Variables
+Build parameters are organized across HCL variable files:
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `proxmox_api_url` | Proxmox API endpoint | **Required** |
-| `proxmox_api_token_id` | API token ID (`user@pam!token`) | **Required** |
-| `proxmox_api_token_secret` | API token secret | **Required** |
-| `proxmox_node` | Target Proxmox node | `pve` |
-| `vm_id` | Template VM ID in Proxmox | `900` |
-| `iso_name` | Debian ISO filename (Renovate-managed) | `debian-13.4.0-amd64-netinst.iso` |
-| `iso_storage_pool` | Proxmox ISO storage pool | `local` |
-| `disk_storage_pool` | Proxmox VM disk storage pool | `local-zfs` |
-| `network_adapter_bridge` | Network bridge for build VM | `vmbr0` |
-| `cpu_type` | CPU type passed to QEMU | `host` |
-| `cores` | CPU cores for build VM | `1` |
-| `memory` | RAM (MB) for build VM | `1024` |
-| `runner_host_ip` | IP of machine serving preseed via HTTP | `127.0.0.1` |
-| `builder_creds` | Temporary build user credentials | `packer` / `packer` |
-| `timezone` | System timezone for preseed | `US/Eastern` |
-| `apt_mirror` | APT mirror configuration object | Debian CDN |
+| File | Purpose |
+|------|---------|
+| `variables.pkr.hcl` | All variable declarations with defaults |
+| `debian.auto.pkrvars.hcl` | ISO version pin (auto-updated by Renovate & CI) |
+| `config.pkr.hcl` | Plugin versions and dynamic naming |
+| `source.pkr.hcl` | Proxmox API, VM hardware, network config |
+| `build.pkr.hcl` | Provisioner chain and manifest post-processor |
 
-### Environment Variables (Local Builds)
+Key configurable parameters:
 
-```bash
-export PKR_VAR_proxmox_api_url="https://pve.example.com:8006/api2/json"
-export PKR_VAR_proxmox_api_token_id="packer@pve!packer-token"
-export PKR_VAR_proxmox_api_token_secret="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `proxmox_node` | `pve` | Target Proxmox node |
+| `vm_id` | `900` | Template VM ID |
+| `disk_storage_pool` | `local-zfs` | ZFS pool for template disk |
+| `cpu_type` | `host` | CPU passthrough mode |
+| `cores` / `memory` | `1` / `1024` | Build-time resources (not runtime) |
+| `timezone` | `US/Eastern` | System timezone |
+| ISO version | *(auto-managed)* | Pinned in `debian.auto.pkrvars.hcl` |
+
+> **Note:** Proxmox API credentials and runner IP are injected via CI secrets — never committed to the repo.
+
+---
+
+## CI/CD Automation
+
+Five GitHub Actions workflows automate the full lifecycle:
+
+```mermaid
+flowchart TD
+    subgraph "PR Phase"
+        PR[Pull Request] --> V[validate.yml\nPacker init + validate]
+        PR --> F[format.yml\npacker fmt · Prettier\nshfmt · shellcheck]
+        PR --> DRV[check-host-driver.yml\nVM ↔ Host driver sync]
+    end
+
+    subgraph "Merge Phase"
+        M[Merge to Main] --> B[build.yml\nBuild template on Proxmox]
+        B --> REL[Create GitHub Release]
+        B --> TF[Push manifest to\nTerraform repo as PR]
+    end
+
+    subgraph "Scheduled"
+        CRON[Every Friday] --> ISO[check-debian-iso.yml\nCheck for new Debian release]
+        ISO -->|New version found| PR2[Auto-create PR]
+    end
+
+    style B fill:#02A8EF,color:#fff
+    style TF fill:#7B42BC,color:#fff
+    style DRV fill:#E57000,color:#fff
 ```
+
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| **validate** | PR | Runs `packer init` + `packer validate` |
+| **format** | PR | Enforces `packer fmt`, Prettier, shfmt, shellcheck |
+| **check-host-driver** | PR (bootstrap.sh changes) | Blocks merge if VM driver version > Proxmox host driver |
+| **build** | Push to main | Full build → GitHub Release → Terraform manifest PR |
+| **check-debian-iso** | Weekly (Friday) | Scrapes debian.org for new ISO releases, auto-creates PR |
+
+### Driver Version Synchronization
+
+A critical safety check ensures the **Proxmox host always has a driver version ≥ the VM template's driver**. The `check-host-driver` workflow cross-references this repo's `bootstrap.sh` with the Ansible repo's driver version and blocks the PR if the host hasn't been updated first.
+
+---
+
+## Cross-Repo Integration
+
+This repo is the **entry point** of a 4-stage infrastructure pipeline:
+
+```mermaid
+flowchart LR
+    P["📦 Packer\nBuild Template"] -->|manifest.json| T["🏗️ Terraform\nProvision VMs"]
+    T -->|repository_dispatch| A["⚙️ Ansible\nConfigure Cluster"]
+    A -->|ArgoCD bootstrap| K["☸️ Apps\nDeploy Services"]
+
+    style P fill:#02A8EF,color:#fff
+    style T fill:#7B42BC,color:#fff
+    style A fill:#EE0000,color:#fff
+    style K fill:#326CE5,color:#fff
+```
+
+1. **Packer** builds a template and generates `packer-manifest.json`
+2. The build workflow **creates a PR in the Terraform repo** with the updated manifest
+3. Terraform clones the new template into cluster VMs
+4. Terraform triggers Ansible via `repository_dispatch`
+5. Ansible provisions K3s and bootstraps ArgoCD
+6. ArgoCD reconciles the Apps repo onto the cluster
+
+---
 
 ## Prerequisites
 
-- **Proxmox VE** with API token permissions: `VM.Allocate`, `VM.Clone`, `VM.Config.*`, `VM.Audit`, `VM.PowerMgmt`, `Datastore.AllocateSpace`, `Datastore.Audit`, `Sys.Modify`
-- **Storage pools** configured: ISO pool (default `local`) and disk pool (default `local-zfs`)
-- **Network bridge** `vmbr0` (or configured alternative) accessible from build machine
-- **Packer** >= 1.10 (for local builds)
-- **HTTP port 8000** reachable from Proxmox to the build machine (preseed serving)
+- **Proxmox VE** with API token access (VM.Allocate, VM.Clone, VM.Config.\*, Datastore.\*, Sys.Modify)
+- **Storage pools**: ISO storage (`local`) + ZFS disk pool (`local-zfs`)
+- **Network**: HTTP port 8000 accessible from Proxmox to the build runner (preseed serving)
+- **Packer** ≥ 1.10 with the `hashicorp/proxmox` plugin
+
+---
 
 ## Usage
 
 ```bash
 # Initialize plugins
-packer init .
+packer init -upgrade .
 
 # Validate configuration
 packer validate .
 
-# Build template
-packer build .
+# Build the template (requires Proxmox credentials)
+packer build -force .
 ```
 
-## CI/CD
+> In practice, builds are triggered automatically via CI on merge to `main`.
 
-| Workflow | Trigger | Description |
-|----------|---------|-------------|
-| **build.yml** | Push to `main` | Builds template → creates GitHub Release → opens PR in Terraform repo with updated manifest |
-| **validate.yml** | Pull requests | Validates Packer HCL configuration |
-| **format.yml** | Pull requests | Checks HCL formatting consistency |
-| **check-debian-iso.yml** | Weekly schedule | Checks for new Debian point releases → opens version-bump PR |
-| **check-host-driver.yml** | PRs touching `bootstrap.sh` | **Blocks merge** until Proxmox host has matching SR-IOV driver version |
+---
 
-### Required Secrets
+## License & Contributing
 
-| Secret | Purpose |
-|--------|---------|
-| `PROXMOX_API_TOKEN_ID` | Proxmox API authentication |
-| `PROXMOX_API_TOKEN_SECRET` | Proxmox API authentication |
-| `ORG_DISPATCH_TOKEN` | Cross-repo PAT for creating PRs in the Terraform repo |
-
-## Intel SR-IOV Driver Coordination
-
-The i915 SR-IOV DKMS driver must be installed on **both** the Proxmox host (to create virtual functions) and the VM template (to consume them). Renovate detects new releases and opens PRs in both repos simultaneously, but they must be **merged in the correct order**.
-
-```mermaid
-flowchart TB
-    subgraph renovate["Renovate Detects New Driver Release"]
-        R["New i915-sriov-dkms\nversion available"]
-    end
-
-    R -- "Opens PR" --> AnsiblePR["Ansible PR\nHost driver upgrade"]
-    R -- "Opens PR" --> PackerPR["Packer PR\nVM driver upgrade"]
-
-    subgraph merge["Enforced Merge Order"]
-        direction TB
-        AnsiblePR -- "1 · Merge first" --> AnsibleCI["Ansible Workflow\nUpgrades host driver\n& reboots Proxmox"]
-        AnsibleCI -- "2 · Host comes\nback online" --> HostReady["Proxmox Host\nRunning new driver"]
-        HostReady -- "3 · check-host-driver\npasses ✓" --> PackerPR
-        PackerPR -- "4 · Merge triggers\nbuild" --> PackerCI["Packer Workflow\nBuilds new template\nwith matching driver"]
-    end
-
-    style renovate fill:#1a1b27,stroke:#4299e1,color:#e2e8f0
-    style merge fill:#1a1b27,stroke:#48bb78,color:#e2e8f0
-    style AnsiblePR fill:#48bb78,stroke:#276749,color:#fff
-    style PackerPR fill:#4299e1,stroke:#2b6cb0,color:#fff
-    style HostReady fill:#2d3748,stroke:#a0aec0,color:#e2e8f0
-    style AnsibleCI fill:#2d3748,stroke:#48bb78,color:#e2e8f0
-    style PackerCI fill:#2d3748,stroke:#4299e1,color:#e2e8f0
-```
-
-The `check-host-driver.yml` workflow acts as a **merge gate**: it extracts the driver version from the PR, compares it against Ansible's `main` branch, and **fails with a descriptive comment** if the Proxmox host hasn't been updated yet — ensuring VMs are never built with a driver version ahead of the hypervisor.
-
-## Troubleshooting
-
-| Issue | Solution |
-|-------|----------|
-| SSH timeout during build | Verify Proxmox firewall allows SSH to the build VM |
-| SR-IOV driver install fails | Check kernel headers are available (`linux-headers-amd64`) and inspect `/var/lib/dkms/` logs |
-| Cloud-init doesn't run on clone | Ensure machine-id was truncated and `cloud-init clean` was executed |
-| Preseed HTTP timeout | Verify `runner_host_ip` is routable from Proxmox and port 8000 is open |
-| `check-host-driver` blocks PR | Merge the Ansible driver PR first, wait for host reboot |
-
-## Related Repositories
-
-| Repository | Role in Pipeline |
-|------------|-----------------|
-| [terraform](https://github.com/Starktastic-Homelab/terraform) | Consumes the manifest to provision K3s VMs |
-| [ansible](https://github.com/Starktastic-Homelab/ansible) | Installs K3s and bootstraps the cluster |
-| [apps](https://github.com/Starktastic-Homelab/apps) | GitOps application definitions deployed by ArgoCD |
-
-## License
-
-MIT
+This is a personal homelab project. Feel free to use it as inspiration for your own infrastructure. If you spot an issue or have a suggestion, [open an issue](../../issues) — contributions and feedback are welcome.
