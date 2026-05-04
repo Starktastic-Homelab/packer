@@ -22,7 +22,6 @@ apt install -y --install-recommends \
   build-essential \
   dkms \
   linux-headers-amd64 \
-  "linux-headers-$(uname -r)" \
   cloud-init \
   nfs-common \
   firmware-misc-nonfree \
@@ -33,13 +32,8 @@ apt install -y --install-recommends \
 # Install Intel SR-IOV driver
 # ----------------------------
 echo 'Installing Intel SR-IOV DKMS Driver...'
-curl -L -s -S -o i915.deb "https://github.com/strongtz/i915-sriov-dkms/releases/download/2026.05.03/i915-sriov-dkms_2026.05.03_amd64.deb"
+curl -L -s -S -o i915.deb "https://github.com/strongtz/i915-sriov-dkms/releases/download/2026.03.05.1/i915-sriov-dkms_2026.03.05.1_amd64.deb"
 dpkg -i i915.deb && rm i915.deb
-
-# DKMS postinst only builds for the running kernel, which may differ from
-# the kernel installed by full-upgrade. Build explicitly for all kernels.
-echo 'Building i915-sriov-dkms for all installed kernels...'
-dkms autoinstall
 
 # ----------------------------
 # Switch network stack
@@ -83,7 +77,7 @@ if ! grep -q '^GRUB_TIMEOUT_STYLE=hidden' /etc/default/grub; then
 fi
 
 update-grub
-update-initramfs -u -k all
+update-initramfs -u
 
 # ----------------------------
 # Reset machine ID
