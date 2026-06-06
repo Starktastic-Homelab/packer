@@ -32,7 +32,7 @@ apt install -y --install-recommends \
 # Install Intel SR-IOV driver
 # ----------------------------
 echo 'Installing Intel SR-IOV DKMS Driver...'
-curl -L -s -S -o i915.deb "https://github.com/strongtz/i915-sriov-dkms/releases/download/2026.03.05.1/i915-sriov-dkms_2026.03.05.1_amd64.deb"
+curl -L -s -S -o i915.deb "https://github.com/strongtz/i915-sriov-dkms/releases/download/2026.03.05.2/i915-sriov-dkms_2026.03.05.2_amd64.deb"
 dpkg -i i915.deb && rm i915.deb
 
 # ----------------------------
