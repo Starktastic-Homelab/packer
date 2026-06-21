@@ -1,0 +1,39 @@
+# See https://pre-commit.com for usage. Mirrors the checks run in CI
+# (format.yml + validate.yml) so issues are caught before pushing.
+# Hook versions are kept up to date by Renovate (`:enablePreCommit`).
+minimum_pre_commit_version: "3.0.0"
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: check-json
+      - id: check-added-large-files
+
+  - repo: https://github.com/rbubley/mirrors-prettier
+    rev: v3.8.4
+    hooks:
+      - id: prettier
+        files: \.(ya?ml|json)$
+
+  - repo: https://github.com/scop/pre-commit-shfmt
+    rev: v3.13.1-1
+    hooks:
+      - id: shfmt
+        args: ["-i", "2", "-ci", "-s"]
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
+        files: ^scripts/.*\.sh$
+
+  - repo: local
+    hooks:
+      - id: packer-fmt
+        name: packer fmt
+        entry: packer fmt -recursive .
+        language: system
+        pass_filenames: false
+        files: \.pkr\.hcl$
