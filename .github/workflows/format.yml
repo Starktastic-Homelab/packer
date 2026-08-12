@@ -30,8 +30,13 @@ jobs:
           prettier_options: --write **/*.{yaml,yml,json}
           no_commit: true
 
+      # Pinned to match .pre-commit-config.yaml. Resolving "latest" also makes
+      # the action fetch a redirect from github.com with no error handler, so a
+      # dropped connection crashes the job.
       - name: Setup shfmt
         uses: mfinelli/setup-shfmt@v4.0.1
+        with:
+          shfmt-version: 3.13.1
 
       - name: Run shfmt
         run: shfmt -i 2 -ci -s -w **/*.sh || true

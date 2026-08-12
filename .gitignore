@@ -27,3 +27,6 @@ packer-manifest.json
 # OS files
 .DS_Store
 Thumbs.db
+
+# Python bytecode from scripts/tests
+__pycache__/

@@ -16,12 +16,10 @@
     },
     {
       "customType": "regex",
-      "managerFilePatterns": ["/scripts/bootstrap\\.sh$/"],
+      "managerFilePatterns": ["/\\.auto\\.pkrvars\\.hcl$/"],
       "matchStrings": [
-        "https://github.com/(?<depName>strongtz/i915-sriov-dkms)/releases/download/(?<currentValue>[^/]+)/i915-sriov-dkms_(?:.*?)_amd64\\.deb"
+        "#\\s*renovate:\\s*datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\s+i915_sriov_version\\s*=\\s*\"(?<currentValue>[^\"]+)\""
       ],
-      "autoReplaceStringTemplate": "https://github.com/{{{depName}}}/releases/download/{{{newValue}}}/i915-sriov-dkms_{{{newValue}}}_amd64.deb",
-      "datasourceTemplate": "github-releases",
       "versioningTemplate": "loose"
     }
   ],
@@ -29,6 +27,13 @@
     {
       "matchDatasources": ["github-releases"],
       "groupName": "packer-plugins"
+    },
+    {
+      "description": "The guest image runs Debian 13 (kernel 6.12), which only the 2026.03.05.x backport line of i915-sriov-dkms supports; the newest releases require 6.17+. Keep Renovate on that line, and let the i915-compat workflow validate the proposed pair against upstream release metadata regardless. When Debian's kernel series moves, widen this together with i915_sriov_kernel_series in debian.auto.pkrvars.hcl.",
+      "matchDatasources": ["github-releases"],
+      "matchPackageNames": ["strongtz/i915-sriov-dkms"],
+      "allowedVersions": "/^2026\\.03\\.05\\./",
+      "groupName": "i915-sriov-dkms"
     }
   ]
 }

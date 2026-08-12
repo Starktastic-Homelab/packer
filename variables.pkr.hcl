@@ -43,6 +43,26 @@ variable "iso_storage_pool" {
   default = "local"
 }
 
+variable "i915_sriov_version" {
+  description = "i915-sriov-dkms release installed in the guest image. Must support i915_sriov_kernel_series upstream."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[0-9]+(\\.[0-9]+)+$", var.i915_sriov_version))
+    error_message = "The i915_sriov_version must be an upstream release tag such as '2026.03.05.6'."
+  }
+}
+
+variable "i915_sriov_kernel_series" {
+  description = "Kernel major.minor series the guest image is expected to run (e.g. 6.12 for Debian 13)."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[0-9]+\\.[0-9]+$", var.i915_sriov_kernel_series))
+    error_message = "The i915_sriov_kernel_series must be a major.minor version such as '6.12'."
+  }
+}
+
 variable "scsi_controller" {
   default = "virtio-scsi-pci"
 }
