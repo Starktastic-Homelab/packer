@@ -31,8 +31,28 @@ apt install -y --install-recommends \
 # ----------------------------
 # Install Intel SR-IOV driver
 # ----------------------------
-echo 'Installing Intel SR-IOV DKMS Driver...'
-curl -L -s -S -o i915.deb "https://github.com/strongtz/i915-sriov-dkms/releases/download/2026.03.05.2/i915-sriov-dkms_2026.03.05.2_amd64.deb"
+# Version and kernel series come from debian.auto.pkrvars.hcl. The pair is
+# validated against upstream release metadata in CI (i915-compat workflow);
+# here we only confirm the image really is on the kernel series that was
+# validated, so a Debian kernel bump fails the build instead of silently
+# installing a DKMS release that cannot support it.
+: "${I915_SRIOV_VERSION:?must be set by the Packer shell provisioner}"
+: "${I915_SRIOV_KERNEL_SERIES:?must be set by the Packer shell provisioner}"
+
+echo "Verifying guest kernels are on series ${I915_SRIOV_KERNEL_SERIES}..."
+for kernel in "$(uname -r)" /lib/modules/*; do
+  kernel="${kernel#/lib/modules/}"
+  series="$(echo "$kernel" | cut -d. -f1,2)"
+  if [ "$series" != "$I915_SRIOV_KERNEL_SERIES" ]; then
+    echo "ERROR: kernel ${kernel} is series ${series}, but i915-sriov-dkms ${I915_SRIOV_VERSION}" >&2
+    echo "       was validated for series ${I915_SRIOV_KERNEL_SERIES}." >&2
+    echo "       Update i915_sriov_version/i915_sriov_kernel_series in debian.auto.pkrvars.hcl." >&2
+    exit 1
+  fi
+done
+
+echo "Installing Intel SR-IOV DKMS Driver ${I915_SRIOV_VERSION}..."
+curl -L -s -S -o i915.deb "https://github.com/strongtz/i915-sriov-dkms/releases/download/${I915_SRIOV_VERSION}/i915-sriov-dkms_${I915_SRIOV_VERSION}_amd64.deb"
 dpkg -i i915.deb && rm i915.deb
 
 # ----------------------------

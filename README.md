@@ -136,7 +136,7 @@ flowchart TD
     subgraph pr["PR Phase"]
         PR([Pull Request]) --> V[validate.yml\nPacker init + validate]
         PR --> F[format.yml\npacker fmt · Prettier\nshfmt · shellcheck]
-        PR --> DRV{{check-host-driver.yml\nVM ↔ Host driver sync}}
+        PR --> DRV{{i915-compat.yml\nHost ↔ guest driver compatibility}}
     end
 
     subgraph merge["Merge Phase"]
@@ -162,51 +162,61 @@ flowchart TD
 |----------|---------|---------|
 | **validate** | PR | Runs `packer init` + `packer validate` |
 | **format** | PR | Enforces `packer fmt`, Prettier, shfmt, shellcheck |
-| **check-host-driver** | PR (bootstrap.sh changes) | Blocks merge if VM driver version > Proxmox host driver |
+| **i915-compat** | PR (driver/kernel config changes) | Blocks merge unless upstream data proves the guest ↔ host driver combination works |
 | **build** | Push to main | Full build → GitHub Release → Terraform manifest PR |
 | **check-debian-iso** | Weekly (Friday) | Scrapes debian.org for new ISO releases, auto-creates PR |
 
-### Driver Version Synchronization
+### i915 SR-IOV Driver Compatibility
 
-A critical safety check ensures the **Proxmox host always has a driver version ≥ the VM template's driver**. When Renovate detects a new driver release, it opens PRs in both this repo and the Ansible repo simultaneously — but they must be merged in the correct order:
+The host (PF) and the guest (VF) **do not have to run the same
+`i915-sriov-dkms` version** — upstream states this explicitly, and the releases
+have split into kernel-specific lines:
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant RN as Renovate
-    participant AN as Ansible Repo
-    participant PVE as Proxmox Host
-    participant PK as Packer Repo
-    participant CI as check-host-driver
+| Side | Kernel | Driver line | Why |
+|------|--------|-------------|-----|
+| **Guest** (this repo) | 6.12 (Debian 13) | `2026.03.05.x` | The newest line requires kernel 6.17+; the backport line supports 6.12–6.19 |
+| **Host** (Proxmox, ansible repo) | 6.17 (pinned) | `2026.08.12.x` | Supports 6.17–7.1 |
 
-    RN->>AN: Open PR — bump host driver
-    RN->>PK: Open PR — bump VM driver
+Three independent axes must hold, and all three come from upstream data for the
+exact release tags — never from version ordering or a curated allowlist:
 
-    rect rgb(238, 0, 0)
-    Note over AN,PVE: Step 1 — Upgrade host first
-    AN->>AN: Merge driver PR
-    AN->>PVE: i915-sriov-upgrade workflow
-    PVE->>PVE: Install DKMS + GRUB params
-    PVE->>PVE: Delayed reboot (60s)
-    PVE-->>AN: Host online with new driver
-    end
+1. **guest driver ↔ guest kernel** — the release notes of the exact tag must
+   cover `i915_sriov_kernel_series`
+2. **host driver ↔ host kernel** — same check against the pinned Proxmox kernel
+3. **PF ↔ VF IOV ABI** — `IOV_VERSION_{BASE,LATEST}_{MAJOR,MINOR}` from each
+   tag's `gt/iov/abi/iov_version_abi.h`, replayed through the upstream
+   handshake to see whether a common ABI can be negotiated
 
-    rect rgb(50, 108, 229)
-    Note over PK,CI: Step 2 — Unblock Packer
-    PK->>CI: PR triggers check-host-driver
-    CI->>AN: Fetch driver version from main
-    CI->>PK: Compare with PR's bootstrap.sh
-    CI-->>PK: ✓ Versions match — PR unblocked
-    end
+`scripts/i915_compat.py` implements all three (stdlib only, no dependencies)
+and is shared verbatim with the ansible repo. **Unknown means fail**: a missing
+tag, unparsable release notes, a missing ABI header or a network failure all
+exit non-zero rather than approving an unverified combination.
 
-    rect rgb(123, 66, 188)
-    Note over PK: Step 3 — Build matching template
-    PK->>PK: Merge PR → build workflow
-    PK->>PK: New template with matching driver
-    end
+```console
+$ python3 scripts/i915_compat.py \
+    --host-version 2026.08.12.1 --host-kernel 6.17.13-13-pve \
+    --guest-version 2026.03.05.6 --guest-kernel 6.12
+# exit 0 = compatible · 1 = incompatible · 2 = cannot be established
 ```
 
-If a developer tries to merge the Packer PR first, `check-host-driver` fails with a descriptive comment explaining which Ansible PR must be merged first — preventing VMs from ever being built with a driver version ahead of the hypervisor.
+Two layers protect the image build:
+
+1. **CI** (`i915-compat.yml`) validates the declared guest driver + kernel
+   series against the host state on the ansible repo's `main`, and posts the
+   report as a sticky PR comment.
+2. **Build** (`scripts/bootstrap.sh`) re-checks the kernel the image *actually*
+   has (running plus every installed `/lib/modules` kernel) against
+   `i915_sriov_kernel_series` before installing the DKMS package, so a Debian
+   kernel bump fails the build instead of shipping a broken template.
+
+Renovate may only propose releases on the `2026.03.05.x` line
+(`allowedVersions` in `renovate.json`), and its PRs still have to pass
+`i915-compat` — a newer version number alone can never merge.
+
+**Moving the guest to a newer line** (e.g. when Debian ships a 6.17+ kernel):
+update `i915_sriov_version` and `i915_sriov_kernel_series` in
+`debian.auto.pkrvars.hcl`, widen `allowedVersions` in `renovate.json`, and let
+`i915-compat` confirm the new pair.
 
 ---
 
