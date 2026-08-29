@@ -5,7 +5,7 @@ iso_name = "debian-13.6.0-amd64-netinst.iso"
 # the 2026.08.12.x line does not support. The Proxmox host (PF) runs a
 # different, newer release on purpose — they do not have to match.
 # renovate: datasource=github-releases depName=strongtz/i915-sriov-dkms
-i915_sriov_version = "2026.03.05.6"
+i915_sriov_version = "2026.03.05.7"
 
 # Kernel series this image is expected to boot. Single source of truth for the
 # guest side: CI validates it against the release above using upstream release
