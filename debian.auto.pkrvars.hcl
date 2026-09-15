@@ -1,4 +1,4 @@
-iso_name = "debian-13.6.0-amd64-netinst.iso"
+iso_name = "debian-13.7.0-amd64-netinst.iso"
 
 # Guest (VF) i915-sriov-dkms release. Deliberately on the 2026.03.05.x backport
 # line, not the newest release: Debian 13 ships the 6.12 kernel series, which
