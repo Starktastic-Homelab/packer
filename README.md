@@ -136,7 +136,7 @@ flowchart TD
     subgraph pr["PR Phase"]
         PR([Pull Request]) --> V[validate.yml\nPacker init + validate]
         PR --> F[format.yml\npacker fmt · Prettier\nshfmt · shellcheck]
-        PR --> DRV{{i915-compat.yml\nHost ↔ guest driver compatibility}}
+        PR --> DRV{{i915-compat.yml\nMetadata and known-bad policy}}
     end
 
     subgraph merge["Merge Phase"]
@@ -162,11 +162,11 @@ flowchart TD
 |----------|---------|---------|
 | **validate** | PR | Runs `packer init` + `packer validate` |
 | **format** | PR | Enforces `packer fmt`, Prettier, shfmt, shellcheck |
-| **i915-compat** | PR (driver/kernel config changes) | Blocks merge unless upstream data proves the guest ↔ host driver combination works |
+| **i915-compat** | PR (driver/kernel config changes) | Rejects unsupported, unverifiable or known-bad metadata/policy combinations; does not run GPU hardware |
 | **build** | Push to main | Full build → GitHub Release → Terraform manifest PR |
 | **check-debian-iso** | Weekly (Friday) | Scrapes debian.org for new ISO releases, auto-creates PR |
 
-### i915 SR-IOV Driver Compatibility
+### i915 SR-IOV Metadata and Runtime Acceptance
 
 The host (PF) and the guest (VF) **do not have to run the same
 `i915-sriov-dkms` version** — upstream states this explicitly, and the releases
@@ -175,7 +175,7 @@ have split into kernel-specific lines:
 | Side | Kernel | Driver line | Why |
 |------|--------|-------------|-----|
 | **Guest** (this repo) | 6.12 (Debian 13) | `2026.03.05.x` | The newest line requires kernel 6.17+; the backport line supports 6.12–6.19 |
-| **Host** (Proxmox, ansible repo) | 6.17 (pinned) | `2026.08.12.x` | Supports 6.17–7.1 |
+| **Host** (Proxmox, ansible repo) | 6.17 (pinned) | `2026.09.14` | Supports 6.17–7.2; verified rollback from the `2026.09.16` regression |
 
 Three independent axes must hold, and all three come from upstream data for the
 exact release tags — never from version ordering or a curated allowlist:
@@ -190,20 +190,37 @@ exact release tags — never from version ordering or a curated allowlist:
 `scripts/i915_compat.py` implements all three (stdlib only, no dependencies)
 and is shared verbatim with the ansible repo. **Unknown means fail**: a missing
 tag, unparsable release notes, a missing ABI header or a network failure all
-exit non-zero rather than approving an unverified combination.
+exit non-zero rather than passing unverified metadata. A separate local
+exclusion rejects host `2026.09.16` because real hardware failed despite
+agreeing metadata. It is not a host/guest compatibility allowlist.
+
+**A green metadata check or successful image build does not prove functional
+hardware.** Every checker report says `Hardware acceptance: NOT TESTED`.
+Acceptance must exercise the expected loaded stack after deployment, including
+hardware encoding and HDR tone mapping. Testing the currently installed driver
+does not validate an uninstalled candidate.
+
+After deploying new guest images, run the Ansible repository's
+`i915-acceptance.yml` current-stack workflow. It compares the loaded guest
+release/kernel against the declared target and runs generic nonroot H.264,
+HEVC and HDR GPU probes on every inventory worker, without depending on
+application deployments. It does not label that result as a proven host
+reboot. Host-driver upgrades have a separate post-reboot mode tied to the
+installation's saved pre-change identities.
 
 ```console
 $ python3 scripts/i915_compat.py \
-    --host-version 2026.08.12.1 --host-kernel 6.17.13-13-pve \
-    --guest-version 2026.03.05.6 --guest-kernel 6.12
-# exit 0 = compatible · 1 = incompatible · 2 = cannot be established
+    --host-version 2026.09.14 --host-kernel 6.17.13-13-pve \
+    --guest-version 2026.03.05.7 --guest-kernel 6.12
+# exit 0 = metadata/policy passed, hardware NOT TESTED
+# exit 1 = unsupported or blocked · 2 = metadata cannot be established
 ```
 
 Two layers protect the image build:
 
 1. **CI** (`i915-compat.yml`) validates the declared guest driver + kernel
    series against the host state on the ansible repo's `main`, and posts the
-   report as a sticky PR comment.
+   report as a sticky PR comment, without claiming runtime acceptance.
 2. **Build** (`scripts/bootstrap.sh`) re-checks the kernel the image *actually*
    has (running plus every installed `/lib/modules` kernel) against
    `i915_sriov_kernel_series` before installing the DKMS package, so a Debian
@@ -212,6 +229,18 @@ Two layers protect the image build:
 Renovate may only propose releases on the `2026.03.05.x` line
 (`allowedVersions` in `renovate.json`), and its PRs still have to pass
 `i915-compat` — a newer version number alone can never merge.
+
+The actual required-check list is versioned in
+`.github/required-status-checks.json`; it replaces the obsolete
+`Verify Proxmox host driver is updated` context with the metadata/policy gate.
+After the named checks exist and pass, an authorized administrator can apply
+the list without replacing other branch protections:
+
+```sh
+gh api --method PATCH \
+  repos/Starktastic-Homelab/packer/branches/main/protection/required_status_checks \
+  --input .github/required-status-checks.json
+```
 
 **Moving the guest to a newer line** (e.g. when Debian ships a 6.17+ kernel):
 update `i915_sriov_version` and `i915_sriov_kernel_series` in
