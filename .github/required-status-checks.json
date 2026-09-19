@@ -1,0 +1,13 @@
+{
+  "strict": true,
+  "checks": [
+    {
+      "context": "Validate Packer template",
+      "app_id": 15368
+    },
+    {
+      "context": "Validate i915 metadata and policy",
+      "app_id": 15368
+    }
+  ]
+}
