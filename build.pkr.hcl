@@ -4,7 +4,7 @@ build {
   provisioner "shell" {
     expect_disconnect = true
     execute_command   = "echo '${var.builder_creds.password}' | sudo -S env {{ .Vars }} bash '{{ .Path }}'"
-    script            = "scripts/bootstrap.sh"
+    scripts           = ["scripts/bootstrap.sh", "scripts/prepare-iscsi-template.sh"]
     env = {
       I915_SRIOV_VERSION       = var.i915_sriov_version
       I915_SRIOV_KERNEL_SERIES = var.i915_sriov_kernel_series
