@@ -307,3 +307,32 @@ packer build -force .
 ## License & Contributing
 
 This is a personal homelab project. Feel free to use it as inspiration for your own infrastructure. If you spot an issue or have a suggestion, [open an issue](../../issues) — contributions and feedback are welcome.
+
+## iSCSI prerequisites in cloned images
+
+Packer installs `open-iscsi`, `e2fsprogs` and `kmod` and checks `iscsi_tcp` for
+every installed kernel. Image finalization refuses active/unknown sessions and
+stored target configuration, disables iSCSI services/socket activation, removes
+the package-generated initiator identity and refreshes all initramfs images.
+The template contains tools, not an enrolled storage client.
+
+[Ansible #267](https://github.com/Starktastic-Homelab/ansible/pull/267) assigns each
+worker's reviewed IQN, enables its daemon and verifies the VM/Node generation
+before marking it storage-ready. Keep Ansible's package checks for existing nodes
+and older templates. Credentials, targets and sessions never belong in Packer.
+
+CI exercises preparation in a disposable Debian container with real packages and
+offline service configuration. Kernel availability, session results, runtime
+service stopping and initramfs generation use test substitutes. The check verifies
+that the identity is removed before the initramfs refresh; the actual image build
+and worker enrollment must still verify these operations on the VM and inspect
+the resulting initramfs. Run the container check with:
+
+```sh
+docker run --rm -v "$PWD:/workspace:ro" \
+  python:3.14-slim-trixie@sha256:caaf356f40667c496d405780745b9ac25771c189a51dfcc42430d531ea09f8a2 \
+  bash /workspace/scripts/tests/test-iscsi-template.sh
+```
+
+Merging builds a new template and opens a Terraform manifest PR. It does not
+authorize merging that downstream PR or replacing the existing cluster.

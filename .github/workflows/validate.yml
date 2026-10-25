@@ -19,6 +19,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
+      - name: Check clone-safe iSCSI image preparation
+        run: |
+          docker run --rm -v "$PWD:/workspace:ro" \
+            python:3.14-slim-trixie@sha256:caaf356f40667c496d405780745b9ac25771c189a51dfcc42430d531ea09f8a2 \
+            bash /workspace/scripts/tests/test-iscsi-template.sh
+
       - name: Install Packer
         uses: hashicorp/setup-packer@v3
         with:
