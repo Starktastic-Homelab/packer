@@ -29,10 +29,10 @@
       "groupName": "packer-plugins"
     },
     {
-      "description": "The guest image runs Debian 13 (kernel 6.12), which only the 2026.03.05.x backport line of i915-sriov-dkms supports; the newest releases require 6.17+. Keep Renovate on that line, and let the i915-compat workflow validate the proposed pair against upstream release metadata regardless. When Debian's kernel series moves, widen this together with i915_sriov_kernel_series in debian.auto.pkrvars.hcl.",
+      "description": "The guest image runs Debian 13 (kernel 6.12), which only the 2025.12.10.x maintenance line of i915-sriov-dkms supports (6.12-6.18); the newest releases require 6.17+, and the older 2026.03.05.x backport line no longer builds on Debian 6.12.113+. Keep Renovate on that line, and let the i915-compat workflow validate the proposed pair against upstream release metadata regardless. When Debian's kernel series moves, widen this together with i915_sriov_kernel_series in debian.auto.pkrvars.hcl.",
       "matchDatasources": ["github-releases"],
       "matchPackageNames": ["strongtz/i915-sriov-dkms"],
-      "allowedVersions": "/^2026\\.03\\.05\\./",
+      "allowedVersions": "/^2025\\.12\\.10\\./",
       "groupName": "i915-sriov-dkms"
     }
   ]

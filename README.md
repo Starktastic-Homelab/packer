@@ -174,7 +174,7 @@ have split into kernel-specific lines:
 
 | Side | Kernel | Driver line | Why |
 |------|--------|-------------|-----|
-| **Guest** (this repo) | 6.12 (Debian 13) | `2026.03.05.x` | The newest line requires kernel 6.17+; the backport line supports 6.12–6.19 |
+| **Guest** (this repo) | 6.12 (Debian 13) | `2025.12.10.x` | The newest line requires kernel 6.17+; this maintenance line supports 6.12–6.18. The older `2026.03.05.x` backport line fails to build on Debian 6.12.113+ ([upstream #502](https://github.com/strongtz/i915-sriov-dkms/issues/502)) |
 | **Host** (Proxmox, ansible repo) | 6.17 (pinned) | `2026.09.14` | Supports 6.17–7.2; verified rollback from the `2026.09.16` regression |
 
 Three independent axes must hold, and all three come from upstream data for the
@@ -211,7 +211,7 @@ installation's saved pre-change identities.
 ```console
 $ python3 scripts/i915_compat.py \
     --host-version 2026.09.14 --host-kernel 6.17.13-13-pve \
-    --guest-version 2026.03.05.7 --guest-kernel 6.12
+    --guest-version 2025.12.10.2 --guest-kernel 6.12
 # exit 0 = metadata/policy passed, hardware NOT TESTED
 # exit 1 = unsupported or blocked · 2 = metadata cannot be established
 ```
@@ -224,9 +224,13 @@ Two layers protect the image build:
 2. **Build** (`scripts/bootstrap.sh`) re-checks the kernel the image *actually*
    has (running plus every installed `/lib/modules` kernel) against
    `i915_sriov_kernel_series` before installing the DKMS package, so a Debian
-   kernel bump fails the build instead of shipping a broken template.
+   kernel bump fails the build instead of shipping a broken template. After
+   installing it, the build fails unless DKMS reports the module `installed`
+   for the kernel the image boots: `dpkg -i` exits 0 even when the DKMS
+   compile fails, which shipped a template without the SR-IOV driver
+   (build 143, kernel `6.12.115+deb13.1`).
 
-Renovate may only propose releases on the `2026.03.05.x` line
+Renovate may only propose releases on the `2025.12.10.x` line
 (`allowedVersions` in `renovate.json`), and its PRs still have to pass
 `i915-compat` — a newer version number alone can never merge.
 

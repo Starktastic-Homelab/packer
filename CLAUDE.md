@@ -53,7 +53,8 @@ what couldn't. "Validated" is not "built": only a real build proves the image, a
 - The ISO comes from Debian `release/current/`: after a point release the pinned ISO disappears and builds
   fail until the check-debian-iso PR merges. When Debian 14 becomes current, `bootstrap.sh` fails the
   build on purpose until the i915 pair is bumped.
-- The guest stays on the i915 `2026.03.05.x` line because Debian 13 runs kernel 6.12; the host runs a
+- The guest stays on the i915 `2025.12.10.x` maintenance line because Debian 13 runs kernel 6.12
+  (`2026.03.05.x` stopped building on 6.12.113+, upstream #502); the host runs a
   newer line on purpose. To move it, follow README "Moving the guest to a newer line".
 - `scripts/i915_compat.py` exits 0 = metadata OK (hardware untested), 1 = incompatible or blocked,
   2 = unknown (fail-closed). Host 2026.09.16 is known-bad. Never loosen the fail-closed behaviour.
