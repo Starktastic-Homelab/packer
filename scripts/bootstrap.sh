@@ -55,6 +55,20 @@ echo "Installing Intel SR-IOV DKMS Driver ${I915_SRIOV_VERSION}..."
 curl -L -s -S -o i915.deb "https://github.com/strongtz/i915-sriov-dkms/releases/download/${I915_SRIOV_VERSION}/i915-sriov-dkms_${I915_SRIOV_VERSION}_amd64.deb"
 dpkg -i i915.deb && rm i915.deb
 
+# dpkg exits 0 even when the DKMS compile fails (build 143 shipped the stock
+# i915 driver this way), so require DKMS to report the module installed for the
+# kernel GRUB boots: the newest installed image.
+boot_kernel="$(find /boot -maxdepth 1 -name 'vmlinuz-*' -printf '%f\n' | sed 's/^vmlinuz-//' | sort -V | tail -n 1)"
+dkms_state="$(dkms status "i915-sriov-dkms/${I915_SRIOV_VERSION}" -k "${boot_kernel}")"
+case "$dkms_state" in
+  *": installed"*) echo "i915-sriov-dkms ${I915_SRIOV_VERSION} is installed for ${boot_kernel}" ;;
+  *)
+    echo "ERROR: i915-sriov-dkms ${I915_SRIOV_VERSION} is not installed for boot kernel '${boot_kernel}'." >&2
+    dkms status >&2
+    exit 1
+    ;;
+esac
+
 # ----------------------------
 # Switch network stack
 # ----------------------------
