@@ -56,6 +56,9 @@ what couldn't. "Validated" is not "built": only a real build proves the image, a
 - The guest stays on the i915 `2025.12.10.x` maintenance line because Debian 13 runs kernel 6.12
   (`2026.03.05.x` stopped building on 6.12.113+, upstream #502); the host runs a
   newer line on purpose. To move it, follow README "Moving the guest to a newer line".
+- `bootstrap.sh` adds `i915.xelp_enable_ccs=1`: host PF `2026.09.14` runs Xe_LP CCS, guest `2025.12.10.1+`
+  defaults it off, and the mismatch (VF PPGTT 48, no `ccs0`) hung `rcs0` under OpenCL and OpenVINO
+  (2026-11-06). It assumes PF CCS on: re-decide it with any host or guest i915 bump, and test OpenCL too.
 - `scripts/i915_compat.py` exits 0 = metadata OK (hardware untested), 1 = incompatible or blocked,
   2 = unknown (fail-closed). Host 2026.09.16 is known-bad. Never loosen the fail-closed behaviour.
 - `i915-compat.yml` must keep no `paths` filter (the test suite asserts it). Required checks are listed
