@@ -103,7 +103,8 @@ apt clean
 # Configure GRUB
 # ----------------------------
 echo 'Configuring GRUB...'
-sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="/GRUB_CMDLINE_LINUX_DEFAULT="i915.enable_guc=3 module_blacklist=xe /' /etc/default/grub
+# xelp_enable_ccs=1 matches the host PF's Xe_LP CCS (47-bit PPGTT); without it OpenCL/OpenVINO hang rcs0. See README.
+sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="/GRUB_CMDLINE_LINUX_DEFAULT="i915.enable_guc=3 i915.xelp_enable_ccs=1 module_blacklist=xe /' /etc/default/grub
 
 sed -i 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/' /etc/default/grub
 if ! grep -q '^GRUB_TIMEOUT_STYLE=hidden' /etc/default/grub; then

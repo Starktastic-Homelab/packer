@@ -93,7 +93,7 @@ The output is a Proxmox VM template with these properties:
 | **SCSI Controller** | virtio-scsi-pci |
 | **Disk** | Thin-provisioned on ZFS with TRIM |
 | **Network** | Virtio NIC with netplan/systemd-networkd |
-| **GPU Support** | Intel i915 SR-IOV DKMS (GuC enabled, `xe` driver blacklisted) |
+| **GPU Support** | Intel i915 SR-IOV DKMS (GuC enabled, Xe_LP CCS enabled to match the host, `xe` driver blacklisted) |
 | **Provisioning** | Cloud-init (NoCloud + ConfigDrive datasources) |
 | **Root Login** | Disabled — sudo-capable default user only |
 
@@ -176,6 +176,19 @@ have split into kernel-specific lines:
 |------|--------|-------------|-----|
 | **Guest** (this repo) | 6.12 (Debian 13) | `2025.12.10.x` | The newest line requires kernel 6.17+; this maintenance line supports 6.12–6.18. The older `2026.03.05.x` backport line fails to build on Debian 6.12.113+ ([upstream #502](https://github.com/strongtz/i915-sriov-dkms/issues/502)) |
 | **Host** (Proxmox, ansible repo) | 6.17 (pinned) | `2026.09.14` | Supports 6.17–7.2; verified rollback from the `2026.09.16` regression |
+
+**Guest kernel command line.** `scripts/bootstrap.sh` boots the guest with
+`i915.enable_guc=3 i915.xelp_enable_ccs=1 module_blacklist=xe quiet`. Host
+`2026.09.14` predates the release that turned Xe_LP CCS off by default
+(`2026.09.16` / `2025.12.10.1`), so the PF runs with CCS on. Without the
+parameter the `2025.12.10.x` guest runs with no `ccs0` and a 48-bit PPGTT, and
+OpenCL (Jellyfin HDR tone mapping) and OpenVINO (Immich ML) hang `rcs0`
+(`GPU HANG ecode 12:1`, 2026-11-06). Upstream
+[b93d4c2](https://github.com/strongtz/i915-sriov-dkms/commit/b93d4c2) fixes
+the VF default, but only from `2026.11.05`. The parameter assumes the PF has
+CCS on (it taints the guest kernel, which is expected): re-decide it with any
+host or guest driver change, and check OpenCL as well as the VA-API acceptance
+probes.
 
 Three independent axes must hold, and all three come from upstream data for the
 exact release tags — never from version ordering or a curated allowlist:
