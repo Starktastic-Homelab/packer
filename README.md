@@ -8,10 +8,11 @@
   <a href="https://github.com/Starktastic-Homelab/packer/actions/workflows/check-debian-iso.yml"><img src="https://github.com/Starktastic-Homelab/packer/actions/workflows/check-debian-iso.yml/badge.svg" alt="Check for new Debian ISO"></a>
 </p>
 
-This repository builds the Debian 13 VM template that every K3s node in the homelab is cloned from. The
-image carries a DKMS build of the Intel i915 SR-IOV driver, so most of the work here is not the install
-but the gates around it: a pull request cannot merge a driver and kernel pair that upstream does not
-support, and a build fails rather than ship a template whose driver did not compile.
+This repository builds three Debian 13 VM templates (ADR 0017): base (VM 900) from the ISO, and k3s
+(VM 901) and storage (VM 902), both cloned from the base. Every K3s node in the homelab is cloned from the
+k3s template. The k3s image carries a DKMS build of the Intel i915 SR-IOV driver, so most of the work here
+is not the install but the gates around it: a pull request cannot merge a driver and kernel pair that
+upstream does not support, and a build fails rather than ship a template whose driver did not compile.
 
 ## Where it sits
 
@@ -19,9 +20,10 @@ support, and a build fails rather than ship a template whose driver did not comp
   <img src="docs/diagrams/chain.svg" alt="Where packer sits: the first of four stages, packer, terraform, ansible, apps. It takes in a Debian ISO and the pinned guest GPU driver, and hands over template VM 900, a release and the manifest pull request in terraform.">
 </p>
 
-A push to `main` is a real build. It replaces template VM 900 on the Proxmox host, publishes a GitHub
-release and opens a pull request in [terraform](https://github.com/Starktastic-Homelab/terraform) that
-carries the new image manifest. Nothing downstream moves until a person merges that pull request. The
+A push to `main` is a real build. It replaces templates 900 (base), 901 (k3s) and 902 (storage) on the
+Proxmox host, publishes a GitHub release and opens two pull requests in
+[terraform](https://github.com/Starktastic-Homelab/terraform), one for the k3s and one for the storage
+entry of the image manifest. Nothing downstream moves until a person merges them. The
 [organization profile](https://github.com/Starktastic-Homelab) shows the whole chain.
 
 ## How it works
@@ -33,37 +35,45 @@ carries the new image manifest. Nothing downstream moves until a person merges t
 </p>
 
 `build.yml` runs on every push to `main` and by hand; a push that touches only `README.md` or
-`renovate.json` is skipped. Its first job uses the self-hosted runner, because Packer talks to the
-Proxmox API and the Debian installer in the new VM fetches its answers from Packer's HTTP server on
-port 8000.
+`renovate.json` is skipped. Its three build jobs use the self-hosted runner, because Packer talks to the
+Proxmox API. The `base` job runs first: the Debian installer in the new VM fetches its answers from
+Packer's HTTP server on port 8000. The `k3s` and `storage` jobs then run in parallel, each cloning
+template 900.
 
-| Step | Defined in | What happens |
-|---|---|---|
-| 1 | `source.pkr.hcl` | Packer creates VM 900 with the Debian 13 netinst ISO, checked against Debian's `SHA256SUMS`, and types a boot command that points the installer at the preseed. |
-| 2 | `http/preseed.cfg.tmpl` | The installer runs unattended: one ext4 root partition, root login disabled, a temporary builder user, `openssh-server` and `qemu-guest-agent`. |
-| 3 | `scripts/bootstrap.sh` | Upgrades every package; installs DKMS, kernel headers, cloud-init, the NFS client, Intel firmware and the VA-API driver; installs the i915 driver between two gates; replaces ifupdown with netplan and systemd-networkd; removes ModemManager; sets the kernel command line; resets the machine ID and the cloud-init state. |
-| 4 | `cloud-init/` | Copied to `/etc/cloud`: NoCloud and ConfigDrive datasources, root disabled, a default user with passwordless sudo, and `growpart` so a clone with a larger disk grows its root filesystem. |
-| 5 | `scripts/delete_builder_user.sh` | Deletes the builder user and its sudoers file. Packer then turns the VM into the template. |
-| 6 | `build.pkr.hcl` | The `manifest` post-processor writes `packer-manifest.json`: the template name, the release tag, the i915 release and its kernel series. |
+| Step | Job | Defined in | What happens |
+|---|---|---|---|
+| 1 | `base` | `source-base.pkr.hcl` | Packer creates VM 900 with the Debian 13 netinst ISO, checked against Debian's `SHA256SUMS`, and types a boot command that points the installer at the preseed. |
+| 2 | `base` | `http/preseed.cfg.tmpl` | The installer runs unattended: one ext4 root partition, root login disabled, a temporary builder user, `openssh-server` and `qemu-guest-agent`. |
+| 3 | `base` | `scripts/base.sh` | Upgrades every package; installs cloud-init; replaces ifupdown with netplan and systemd-networkd. No GPU stack and no compiler. |
+| 4 | `base` | `cloud-init/` | Copied to `/etc/cloud`: NoCloud and ConfigDrive datasources, root disabled, a default user with passwordless sudo, and `growpart` so a clone with a larger disk grows its root filesystem. |
+| 5 | `k3s` | `source-k3s.pkr.hcl`, `scripts/k3s.sh` | Packer clones 900 into VM 901. `k3s.sh` installs DKMS, kernel headers, the NFS client, Intel firmware and the VA-API driver; installs the i915 driver between two gates; removes ModemManager; sets the kernel command line. |
+| 6 | `storage` | `source-storage.pkr.hcl`, `scripts/storage.sh` | Packer clones 900 into VM 902. `storage.sh` installs the LIO target (`targetcli-fb`, held), LVM, activated before the target restores, nftables, the node exporter and the NFS client, and fails if a compiler is present. |
+| 7 | all | `scripts/seal.sh` | Runs last in every build: resets the machine ID and the cloud-init state, and deletes the builder user and its sudoers file. Packer then turns the VM into a template. |
+| 8 | all | `build-{base,k3s,storage}.pkr.hcl` | Each `manifest` post-processor writes `packer-manifest.json` with an entry named after its source (`base`, `k3s`, `storage`): the template name and the release tag, and for k3s the i915 release and its kernel series. |
 
-Both gates in step 3 fail the build. Before the driver is installed, `bootstrap.sh` checks that the
+Both gates in step 5 fail the build. Before the driver is installed, `k3s.sh` checks that the
 running kernel and every kernel under `/lib/modules` are on the pinned series, so a Debian kernel bump
 stops the build instead of installing a driver that cannot support it. After the install, DKMS has to
 report the module as installed for the kernel the image boots. `dpkg -i` exits 0 even when the DKMS
 compile fails, and one build shipped a template with the stock driver that way.
 
-When the build job finishes, two jobs run in parallel on GitHub-hosted runners. `create-release`
-publishes a release tagged `v<Debian version>.<build timestamp>` with the manifest attached.
-`push-manifest` commits the manifest to a new branch `packer-build-<run>` in terraform and opens a pull
-request titled `Update base VM template (<template name>)`. Merging it is the only manual step.
+The order is `base`, then `k3s` and `storage`, then three jobs on GitHub-hosted runners. After `k3s`,
+`create-release` publishes a release tagged `v<Debian version>.<build timestamp>` with the k3s manifest
+attached, and `push-manifest` merges the k3s entry by name into terraform's `packer-manifest.json` on a
+new branch `packer-build-<run>` and opens a pull request titled `Update k3s VM template (<template name>)`.
+After `storage`, `push-storage-manifest` does the same for the storage entry on
+`packer-build-<run>-storage`, titled `Update storage VM template (<template name>)`. Each merge keeps the
+other entries, and the k3s entry stays at `builds[0]` until terraform selects by name. Merging the pull
+requests is the only manual step.
 
-| The template | |
+| The templates | |
 |---|---|
-| Name | `packer-debian-<Debian version>-<build timestamp>`, VM ID 900 |
+| Name | `packer-<template>-debian-<Debian version>-<build timestamp>`; base is VM ID 900, k3s 901, storage 902 |
 | Hardware | q35, CPU type `host`, a 4G virtio disk with discard on `local-zfs`, a virtio NIC on `vmbr0`, QEMU guest agent, cloud-init drive |
 | System | Debian 13, upgraded at build time, root login disabled, empty machine ID |
 | Network | netplan with systemd-networkd and systemd-resolved; ifupdown is removed |
-| GPU | `i915-sriov-dkms` on the `2025.12.10.x` line for kernel 6.12, with the Intel VA-API driver and firmware |
+| GPU | k3s only: `i915-sriov-dkms` on the `2025.12.10.x` line for kernel 6.12, with the Intel VA-API driver and firmware |
+| Storage | storage only: the LIO target, LVM, nftables, the node exporter and the NFS client; no compiler |
 
 ### The i915 compatibility gate
 
@@ -101,7 +111,7 @@ posted as a sticky comment before the job fails. Renovate may only propose relea
 A green check proves metadata, not hardware: every report ends with a `Hardware acceptance: NOT TESTED`
 notice. Only ansible's `i915-acceptance.yml` workflow proves the GPU on the running cluster.
 
-**Guest kernel command line.** `scripts/bootstrap.sh` adds
+**Guest kernel command line.** `scripts/k3s.sh` adds
 `i915.enable_guc=3 i915.xelp_enable_ccs=1 module_blacklist=xe` to the GRUB default command line.
 `i915.xelp_enable_ccs=1` matches the host PF, which runs with Xe_LP CCS on (47-bit PPGTT). Without it,
 OpenCL and OpenVINO workloads hang the guest's `rcs0` engine. The parameter assumes the PF keeps CCS on,
@@ -111,16 +121,18 @@ so re-decide it with any host or guest driver change, and test OpenCL too.
 
 | Path | What it is |
 |---|---|
-| `source.pkr.hcl` | The `proxmox-iso.debian-13` source: Proxmox API, build VM hardware, ISO, boot command, preseed |
-| `build.pkr.hcl` | The provisioners in order and the `manifest` post-processor |
-| `config.pkr.hcl` | The Proxmox plugin pin and the template name |
-| `variables.pkr.hcl` | Variable declarations and defaults: VM ID, node, storage pools, bridge, build VM size |
+| `source-base.pkr.hcl` | The `proxmox-iso.base` source: Proxmox API, build VM hardware, ISO, boot command, preseed |
+| `source-k3s.pkr.hcl`, `source-storage.pkr.hcl` | The `proxmox-clone.k3s` and `proxmox-clone.storage` sources, cloned from the base |
+| `build-base.pkr.hcl`, `build-k3s.pkr.hcl`, `build-storage.pkr.hcl` | Each template's provisioners in order and its `manifest` post-processor |
+| `config.pkr.hcl` | The Proxmox plugin pin and the template names |
+| `variables.pkr.hcl` | Variable declarations and defaults: VM IDs, node, storage pools, bridge, build VM size |
 | `debian.auto.pkrvars.hcl` | The three pins: Debian ISO, guest i915 release, guest kernel series |
 | `http/preseed.cfg.tmpl` | The Debian installer's answers |
-| `scripts/bootstrap.sh` | In-guest provisioning and the two build gates |
-| `scripts/delete_builder_user.sh` | Removes the builder user at the end of the build |
+| `scripts/base.sh`, `scripts/k3s.sh`, `scripts/storage.sh` | In-guest provisioning per template; `k3s.sh` holds the two build gates |
+| `scripts/seal.sh` | Seals every template: machine ID, cloud-init state, builder user |
+| `files/storage/` | The `rtslib-fb-targetctl` drop-in the storage template installs |
 | `cloud-init/` | `cloud.cfg` and the datasource list that end up in `/etc/cloud` |
-| `scripts/i915_compat.py`, `scripts/tests/` | The compatibility checker (standard library only) and its offline tests |
+| `scripts/i915_compat.py`, `scripts/tests/` | The compatibility checker (standard library only), its offline tests and the image layout tests |
 | `.github/required-status-checks.json` | The required status checks for `main`, kept in Git |
 | `renovate.json` | Renovate rules: GitHub Actions, the Packer plugin, and the i915 release held on its line |
 
@@ -128,7 +140,7 @@ so re-decide it with any host or guest driver change, and test OpenCL too.
 
 | Workflow | Runs on | What it does |
 |---|---|---|
-| `build.yml` | push to `main`, manual | Builds the template on the self-hosted runner, publishes a release, opens the manifest pull request in terraform |
+| `build.yml` | push to `main`, manual | Builds the base, then the k3s and storage templates on the self-hosted runner, publishes a release, opens one manifest pull request per template in terraform |
 | `validate.yml` | pull request | Runs `packer init` and `packer validate`; skipped when only `README.md` or `renovate.json` changed |
 | `i915-compat.yml` | every pull request, manual | Runs the checker's tests, then checks the guest pin against the host pin in ansible and comments the report |
 | `format.yml` | pull request, manual | Runs `packer fmt`, Prettier, shfmt and shellcheck, and commits the formatting to the branch |
@@ -148,18 +160,22 @@ PKR_VAR_proxmox_api_token_id=id PKR_VAR_proxmox_api_token_secret=secret \
   packer validate .
 ```
 
-Test the checker offline, then ask upstream about the guest pin alone.
+Test the image layout and the checker offline, then ask upstream about the guest pin alone.
 
 ```sh
+python3 scripts/tests/test_image_layout.py
 python3 scripts/tests/test_i915_compat.py
 python3 scripts/i915_compat.py --guest-version 2025.12.10.2 --guest-kernel 6.12
 ```
 
 Builds normally run in CI. A build by hand needs the real `PKR_VAR_proxmox_*` values and
-`PKR_VAR_runner_host_ip` set to an address the new VM can reach on port 8000. It replaces template 900.
+`PKR_VAR_runner_host_ip` set to an address the new VM can reach on port 8000. It replaces templates 900,
+901 and 902: base first, then the clones.
 
 ```sh
-packer build -force .
+packer build -force -only='proxmox-iso.base' .
+packer build -force -only='proxmox-clone.k3s' .
+packer build -force -only='proxmox-clone.storage' .
 ```
 
 ## Operations

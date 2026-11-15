@@ -24,6 +24,9 @@ jobs:
         with:
           version: latest
 
+      - name: Test image layout
+        run: python3 scripts/tests/test_image_layout.py
+
       - name: Validate
         env:
           # Make sure that validate does not fail due to unset variables

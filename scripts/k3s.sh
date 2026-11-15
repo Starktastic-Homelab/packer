@@ -1,17 +1,17 @@
 #!/bin/bash
+# k3s image, cloned from the base: the GPU stack and the k3s-only packages.
 
 set -e # Exit on error
 
 echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
 
-# ----------------------------
-# Upgrade all packages
-# ----------------------------
+# The build boot runs cloud-init (and may run apt); wait for it. Exit 2 means
+# done with recoverable errors.
+echo 'Waiting for cloud-init...'
+cloud-init status --wait >/dev/null || [ $? -eq 2 ]
+
 echo 'Updating package lists...'
 apt update
-
-echo 'Upgrading all packages...'
-apt full-upgrade -y
 
 # ----------------------------
 # Install build dependencies
@@ -22,7 +22,6 @@ apt install -y --install-recommends \
   build-essential \
   dkms \
   linux-headers-amd64 \
-  cloud-init \
   nfs-common \
   firmware-misc-nonfree \
   intel-media-va-driver-non-free \
@@ -70,23 +69,6 @@ case "$dkms_state" in
 esac
 
 # ----------------------------
-# Switch network stack
-# ----------------------------
-echo 'Migrating from ifupdown to Netplan...'
-
-apt install -y netplan.io systemd-resolved
-apt purge -y ifupdown
-
-# Enable systemd networking services
-systemctl enable systemd-networkd
-systemctl enable systemd-resolved
-
-# Link /etc/resolv.conf to systemd-resolved
-# This ensures standard Linux tools use the DNS settings Cloud-Init provides
-rm -f /etc/resolv.conf
-ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
-
-# ----------------------------
 # Remove ModemManager (interferes with Zigbee USB serial adapters)
 # ----------------------------
 echo 'Removing ModemManager...'
@@ -106,26 +88,7 @@ echo 'Configuring GRUB...'
 # xelp_enable_ccs=1 matches the host PF's Xe_LP CCS (47-bit PPGTT); without it OpenCL/OpenVINO hang rcs0. See README.
 sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="/GRUB_CMDLINE_LINUX_DEFAULT="i915.enable_guc=3 i915.xelp_enable_ccs=1 module_blacklist=xe /' /etc/default/grub
 
-sed -i 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/' /etc/default/grub
-if ! grep -q '^GRUB_TIMEOUT_STYLE=hidden' /etc/default/grub; then
-  echo 'GRUB_TIMEOUT_STYLE=hidden' | tee -a /etc/default/grub
-fi
-
 update-grub
 update-initramfs -u
 
-# ----------------------------
-# Reset machine ID
-# ----------------------------
-echo 'Resetting machine ID...'
-truncate -s 0 /etc/machine-id
-rm -f /var/lib/dbus/machine-id
-ln -s /etc/machine-id /var/lib/dbus/machine-id
-
-# ----------------------------
-# Reset cloud-init for templating
-# ----------------------------
-echo 'Resetting cloud-init state...'
-cloud-init clean --logs
-
-echo 'Bootstrap script completed successfully!'
+echo 'k3s script completed successfully!'

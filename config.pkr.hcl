@@ -8,5 +8,8 @@ packer {
 }
 
 locals {
-  vm_name = "packer-${regex("debian-\\d+\\.\\d+\\.\\d+", var.iso_name)}-${formatdate("YYYYMMDDhhmmss", timestamp())}"
+  debian = regex("debian-\\d+\\.\\d+\\.\\d+", var.iso_name)
+  stamp  = formatdate("YYYYMMDDhhmmss", timestamp())
+  # The manifest git_tag regex-reads "<debian>-<stamp>" from these names.
+  vm_name = { for role in ["base", "k3s", "storage"] : role => "${var.vm_name_prefix}-${role}-${local.debian}-${local.stamp}" }
 }
