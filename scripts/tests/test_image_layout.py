@@ -18,7 +18,6 @@ GPU_PACKAGES = {
     "build-essential",
     "dkms",
     "linux-headers-amd64",
-    "nfs-common",
     "firmware-misc-nonfree",
     "intel-media-va-driver-non-free",
     "vainfo",
@@ -154,7 +153,7 @@ class TestImageLayout(unittest.TestCase):
             self.assertLess(wait, first_apt, role)
 
     def test_gpu_stack_only_in_k3s(self):
-        self.assertLessEqual(GPU_PACKAGES, installs("scripts/k3s.sh"))
+        self.assertLessEqual(GPU_PACKAGES | {"nfs-common"}, installs("scripts/k3s.sh"))
         self.assertIn("cloud-init", installs("scripts/base.sh"))
         for script in ("base", "storage", "seal"):
             rel = f"scripts/{script}.sh"
@@ -169,7 +168,7 @@ class TestImageLayout(unittest.TestCase):
     def test_storage_script(self):
         script = read("scripts/storage.sh")
         commands = shell_commands(script)
-        self.assertIn("apt install -y targetcli-fb lvm2 nftables prometheus-node-exporter", commands)
+        self.assertIn("apt install -y targetcli-fb lvm2 nftables prometheus-node-exporter nfs-common", commands)
         self.assertIn("systemctl enable nftables", commands)
         self.assertIn("apt-mark hold python3-rtslib-fb targetcli-fb", commands)
         self.assertIn(

@@ -193,7 +193,7 @@ jobs:
           # Merge by name, keeping the other templates' entries; k3s stays at builds[0] for terraform's readers.
           echo -e ${{ toJSON(needs.storage.outputs.manifest) }} > "$RUNNER_TEMP/new.json"
           NEW="$(jq -ce '[.builds[] | select(.name=="storage")] | last' "$RUNNER_TEMP/new.json")"
-          jq --argjson new "$NEW" '.builds = ([.builds[] | select(.name != $new.name)] + [$new] | sort_by(.name != "k3s")) | .last_run_uuid = $new.packer_run_uuid' \
+          jq --argjson new "$NEW" '.builds = ([.builds[] | select(.name != $new.name)] + [$new] | sort_by(.name != "k3s"))' \
             packer-manifest.json > "$RUNNER_TEMP/merged.json"
           mv "$RUNNER_TEMP/merged.json" packer-manifest.json
           VM_NAME="$(jq -er '.custom_data.vm_name' <<<"$NEW")"
