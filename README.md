@@ -1,326 +1,183 @@
-<div align="center">
+<p align="center">
+  <img src="docs/diagrams/banner.svg" alt="packer, stage 1 of 4 of Starktastic Homelab: a Debian 13 golden image for Proxmox, rebuilt and released on every push to main. Template VM 900, Debian 13, three driver checks, five workflows.">
+</p>
 
-# 📦 Packer — Golden Image Factory
+<p align="center">
+  <a href="https://github.com/Starktastic-Homelab/packer/actions/workflows/build.yml"><img src="https://github.com/Starktastic-Homelab/packer/actions/workflows/build.yml/badge.svg" alt="Build Proxmox template"></a>
+  <a href="https://github.com/Starktastic-Homelab/packer/actions/workflows/i915-compat.yml"><img src="https://github.com/Starktastic-Homelab/packer/actions/workflows/i915-compat.yml/badge.svg" alt="i915 SR-IOV metadata gate"></a>
+  <a href="https://github.com/Starktastic-Homelab/packer/actions/workflows/check-debian-iso.yml"><img src="https://github.com/Starktastic-Homelab/packer/actions/workflows/check-debian-iso.yml/badge.svg" alt="Check for new Debian ISO"></a>
+</p>
 
-**Automated, immutable Debian VM template builds for Proxmox VE**
+This repository builds the Debian 13 VM template that every K3s node in the homelab is cloned from. The
+image carries a DKMS build of the Intel i915 SR-IOV driver, so most of the work here is not the install
+but the gates around it: a pull request cannot merge a driver and kernel pair that upstream does not
+support, and a build fails rather than ship a template whose driver did not compile.
 
-[![Packer](https://img.shields.io/badge/Packer-02A8EF?style=for-the-badge&logo=packer&logoColor=white)](https://www.packer.io/)
-[![Proxmox](https://img.shields.io/badge/Proxmox-E57000?style=for-the-badge&logo=proxmox&logoColor=white)](https://www.proxmox.com/)
-[![Debian](https://img.shields.io/badge/Debian_Trixie-A81D33?style=for-the-badge&logo=debian&logoColor=white)](https://www.debian.org/)
-[![HCL](https://img.shields.io/badge/HCL-7B42BC?style=for-the-badge&logo=terraform&logoColor=white)](#)
+## Where it sits
 
-*The first stage of a fully automated infrastructure pipeline — from bare ISO to production-ready VM template*
+<p align="center">
+  <img src="docs/diagrams/chain.svg" alt="Where packer sits: the first of four stages, packer, terraform, ansible, apps. It takes in a Debian ISO and the pinned guest GPU driver, and hands over template VM 900, a release and the manifest pull request in terraform.">
+</p>
 
-</div>
+A push to `main` is a real build. It replaces template VM 900 on the Proxmox host, publishes a GitHub
+release and opens a pull request in [terraform](https://github.com/Starktastic-Homelab/terraform) that
+carries the new image manifest. Nothing downstream moves until a person merges that pull request. The
+[organization profile](https://github.com/Starktastic-Homelab) shows the whole chain.
 
----
+## How it works
 
-## Table of Contents
+### The build pipeline
 
-- [Overview](#overview)
-- [Build Pipeline](#build-pipeline)
-- [What Gets Built](#what-gets-built)
-- [Configuration](#configuration)
-- [CI/CD Automation](#cicd-automation)
-- [Cross-Repo Integration](#cross-repo-integration)
-- [Prerequisites](#prerequisites)
-- [Usage](#usage)
-- [License \& Contributing](#license--contributing)
+<p align="center">
+  <img src="docs/diagrams/build-pipeline.svg" alt="Build pipeline: the packer-build job boots the Debian installer in a new Proxmox VM, installs from a preseed served on port 8000, runs bootstrap.sh with its two build gates, adds the cloud-init configuration and removes the builder user. The manifest then feeds a GitHub release and a pull request in terraform.">
+</p>
 
----
+`build.yml` runs on every push to `main` and by hand; a push that touches only `README.md` or
+`renovate.json` is skipped. Its first job uses the self-hosted runner, because Packer talks to the
+Proxmox API and the Debian installer in the new VM fetches its answers from Packer's HTTP server on
+port 8000.
 
-## Overview
+| Step | Defined in | What happens |
+|---|---|---|
+| 1 | `source.pkr.hcl` | Packer creates VM 900 with the Debian 13 netinst ISO, checked against Debian's `SHA256SUMS`, and types a boot command that points the installer at the preseed. |
+| 2 | `http/preseed.cfg.tmpl` | The installer runs unattended: one ext4 root partition, root login disabled, a temporary builder user, `openssh-server` and `qemu-guest-agent`. |
+| 3 | `scripts/bootstrap.sh` | Upgrades every package; installs DKMS, kernel headers, cloud-init, the NFS client, Intel firmware and the VA-API driver; installs the i915 driver between two gates; replaces ifupdown with netplan and systemd-networkd; removes ModemManager; sets the kernel command line; resets the machine ID and the cloud-init state. |
+| 4 | `cloud-init/` | Copied to `/etc/cloud`: NoCloud and ConfigDrive datasources, root disabled, a default user with passwordless sudo, and `growpart` so a clone with a larger disk grows its root filesystem. |
+| 5 | `scripts/delete_builder_user.sh` | Deletes the builder user and its sudoers file. Packer then turns the VM into the template. |
+| 6 | `build.pkr.hcl` | The `manifest` post-processor writes `packer-manifest.json`: the template name, the release tag, the i915 release and its kernel series. |
 
-This repository produces **production-ready Debian VM templates** on Proxmox VE. Each template is a sealed, immutable "golden image" that includes:
+Both gates in step 3 fail the build. Before the driver is installed, `bootstrap.sh` checks that the
+running kernel and every kernel under `/lib/modules` are on the pinned series, so a Debian kernel bump
+stops the build instead of installing a driver that cannot support it. After the install, DKMS has to
+report the module as installed for the kernel the image boots. `dpkg -i` exits 0 even when the DKMS
+compile fails, and one build shipped a template with the stock driver that way.
 
-- **Cloud-init** for zero-touch provisioning when cloned
-- **Intel i915 SR-IOV DKMS driver** for GPU virtual function passthrough
-- **Modern networking** (systemd-networkd + netplan) replacing legacy ifupdown
-- **Hardened GRUB** with GPU and security parameters baked in
-- **Clean machine identity** for unique clone provisioning
+When the build job finishes, two jobs run in parallel on GitHub-hosted runners. `create-release`
+publishes a release tagged `v<Debian version>.<build timestamp>` with the manifest attached.
+`push-manifest` commits the manifest to a new branch `packer-build-<run>` in terraform and opens a pull
+request titled `Update base VM template (<template name>)`. Merging it is the only manual step.
 
-When a build completes, it automatically generates a manifest that triggers downstream Terraform provisioning — no manual steps required.
+| The template | |
+|---|---|
+| Name | `packer-debian-<Debian version>-<build timestamp>`, VM ID 900 |
+| Hardware | q35, CPU type `host`, a 4G virtio disk with discard on `local-zfs`, a virtio NIC on `vmbr0`, QEMU guest agent, cloud-init drive |
+| System | Debian 13, upgraded at build time, root login disabled, empty machine ID |
+| Network | netplan with systemd-networkd and systemd-resolved; ifupdown is removed |
+| GPU | `i915-sriov-dkms` on the `2025.12.10.x` line for kernel 6.12, with the Intel VA-API driver and firmware |
 
----
+### The i915 compatibility gate
 
-## Build Pipeline
+<p align="center">
+  <img src="docs/diagrams/i915-gate.svg" alt="i915 compatibility gate: on every pull request, i915_compat.py reads the guest pin from this repository and the host pin from ansible, rejects blocked host releases, checks both driver and kernel pairs and the PF/VF ABI against upstream data, posts a sticky comment and decides a required status check.">
+</p>
 
-Every template is built through a deterministic 4-stage pipeline:
+The image runs as a guest of a Proxmox host that shares its Intel GPU through SR-IOV: the host drives
+the physical function (PF) and the guest a virtual function (VF). Each side runs a release of
+[`strongtz/i915-sriov-dkms`](https://github.com/strongtz/i915-sriov-dkms), and the two do not have to
+match. The guest stays on the `2025.12.10.x` maintenance line because Debian 13 ships kernel 6.12, which
+the newest releases do not support; the host runs a newer line on purpose.
 
-```mermaid
-flowchart LR
-    subgraph preseed["Stage 1 · Preseed"]
-        A([Debian ISO]) ==> B[Automated\nInstaller] ==> C[Base OS + SSH\n+ QEMU Agent]
-    end
+What has to hold instead is checked by `i915-compat.yml` on every pull request to `main`. The workflow
+has no path filter, so its job can be a required status check.
 
-    subgraph bootstrap["Stage 2 · Bootstrap"]
-        C ==> D[Package\nUpgrades] ==> E[SR-IOV\nDriver] ==> F[Netplan\nMigration] ==> G[GRUB\nHardening]
-    end
+| Check | Where the answer comes from |
+|---|---|
+| Blocked host releases | `BLOCKED_HOST_RELEASES` in the script: releases that failed on this hardware although their metadata agreed. Checked first, before any network call. |
+| 1. Guest driver supports the guest kernel | The kernel range in the release notes of the exact tag must cover `i915_sriov_kernel_series`. |
+| 2. Host driver supports the host kernel | The same check against the pinned Proxmox kernel. |
+| 3. PF and VF agree on an IOV ABI | The `IOV_VERSION_*` values in each tag's `iov_version_abi.h`, replayed through the upstream handshake. |
 
-    subgraph cloudinit["Stage 3 · Cloud-Init"]
-        G ==> H[Datasource\nConfig] ==> I[Default User\nSetup] ==> J[Module\nOrdering]
-    end
+The guest pin comes from `debian.auto.pkrvars.hcl` in the pull request. The host pin is read from the
+`main` branch of [ansible](https://github.com/Starktastic-Homelab/ansible): the release from
+`group_vars/proxmox_hosts/i915_sriov.yml` and the pinned kernel from `roles/i915_sriov/defaults/main.yml`.
+ansible carries a byte-identical copy of `scripts/i915_compat.py` and runs it the other way round,
+reading the guest pin from this repository.
 
-    subgraph finalize["Stage 4 · Finalize"]
-        J ==> K[Remove\nBuild User] ==> L[(Seal as\nTemplate)] ==> M>Manifest JSON]
-    end
+Unknown means fail. A missing tag, release notes without a kernel range, a missing ABI header or a
+network failure all exit non-zero, and so does a pin the workflow cannot read. The checker's report is
+posted as a sticky comment before the job fails. Renovate may only propose releases on the
+`2025.12.10.x` line, and its pull requests go through the same check.
 
-    classDef input fill:#A81D33,stroke:#8B1728,color:#fff
-    classDef store fill:#E57000,stroke:#CC6300,color:#fff
-    classDef output fill:#02A8EF,stroke:#0196D4,color:#fff
-    class A input
-    class L store
-    class M output
-```
+A green check proves metadata, not hardware: every report ends with a `Hardware acceptance: NOT TESTED`
+notice. Only ansible's `i915-acceptance.yml` workflow proves the GPU on the running cluster.
 
-| Stage | Purpose | Key Actions |
-|-------|---------|-------------|
-| **Preseed** | Unattended Debian install from ISO | Locale, partitioning, base packages, temporary build user |
-| **Bootstrap** | Post-install hardening & drivers | SR-IOV DKMS, netplan migration, GRUB params, firmware cleanup |
-| **Cloud-Init** | Provisioning framework | Proxmox datasources, default user, module pipeline |
-| **Finalize** | Seal & export | Remove build user, convert to template, emit manifest JSON |
+**Guest kernel command line.** `scripts/bootstrap.sh` adds
+`i915.enable_guc=3 i915.xelp_enable_ccs=1 module_blacklist=xe` to the GRUB default command line.
+`i915.xelp_enable_ccs=1` matches the host PF, which runs with Xe_LP CCS on (47-bit PPGTT). Without it,
+OpenCL and OpenVINO workloads hang the guest's `rcs0` engine. The parameter assumes the PF keeps CCS on,
+so re-decide it with any host or guest driver change, and test OpenCL too.
 
----
+## What is in the repo
 
-## What Gets Built
+| Path | What it is |
+|---|---|
+| `source.pkr.hcl` | The `proxmox-iso.debian-13` source: Proxmox API, build VM hardware, ISO, boot command, preseed |
+| `build.pkr.hcl` | The provisioners in order and the `manifest` post-processor |
+| `config.pkr.hcl` | The Proxmox plugin pin and the template name |
+| `variables.pkr.hcl` | Variable declarations and defaults: VM ID, node, storage pools, bridge, build VM size |
+| `debian.auto.pkrvars.hcl` | The three pins: Debian ISO, guest i915 release, guest kernel series |
+| `http/preseed.cfg.tmpl` | The Debian installer's answers |
+| `scripts/bootstrap.sh` | In-guest provisioning and the two build gates |
+| `scripts/delete_builder_user.sh` | Removes the builder user at the end of the build |
+| `cloud-init/` | `cloud.cfg` and the datasource list that end up in `/etc/cloud` |
+| `scripts/i915_compat.py`, `scripts/tests/` | The compatibility checker (standard library only) and its offline tests |
+| `.github/required-status-checks.json` | The required status checks for `main`, kept in Git |
+| `renovate.json` | Renovate rules: GitHub Actions, the Packer plugin, and the i915 release held on its line |
 
-The output is a Proxmox VM template with these properties:
+## Workflows
 
-| Property | Value |
-|----------|-------|
-| **Guest OS** | Debian Trixie (latest stable) |
-| **Machine Type** | q35 (UEFI-ready) |
-| **SCSI Controller** | virtio-scsi-pci |
-| **Disk** | Thin-provisioned on ZFS with TRIM |
-| **Network** | Virtio NIC with netplan/systemd-networkd |
-| **GPU Support** | Intel i915 SR-IOV DKMS (GuC enabled, Xe_LP CCS enabled to match the host, `xe` driver blacklisted) |
-| **Provisioning** | Cloud-init (NoCloud + ConfigDrive datasources) |
-| **Root Login** | Disabled — sudo-capable default user only |
+| Workflow | Runs on | What it does |
+|---|---|---|
+| `build.yml` | push to `main`, manual | Builds the template on the self-hosted runner, publishes a release, opens the manifest pull request in terraform |
+| `validate.yml` | pull request | Runs `packer init` and `packer validate`; skipped when only `README.md` or `renovate.json` changed |
+| `i915-compat.yml` | every pull request, manual | Runs the checker's tests, then checks the guest pin against the host pin in ansible and comments the report |
+| `format.yml` | pull request, manual | Runs `packer fmt`, Prettier, shfmt and shellcheck, and commits the formatting to the branch |
+| `check-debian-iso.yml` | Fridays 09:00 UTC, manual | Opens a pull request that bumps the ISO pin when Debian publishes a new netinst ISO |
 
----
+Renovate bumps the GitHub Actions, the Packer plugin and the i915 release. It does not manage the ISO
+pin; `check-debian-iso.yml` does. Packer itself is not pinned.
 
-## Configuration
+## Run it
 
-Build parameters are organized across HCL variable files:
-
-| File | Purpose |
-|------|---------|
-| `variables.pkr.hcl` | All variable declarations with defaults |
-| `debian.auto.pkrvars.hcl` | ISO version pin (auto-updated by Renovate & CI) |
-| `config.pkr.hcl` | Plugin versions and dynamic naming |
-| `source.pkr.hcl` | Proxmox API, VM hardware, network config |
-| `build.pkr.hcl` | Provisioner chain and manifest post-processor |
-
-Key configurable parameters:
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `proxmox_node` | `pve` | Target Proxmox node |
-| `vm_id` | `900` | Template VM ID |
-| `disk_storage_pool` | `local-zfs` | ZFS pool for template disk |
-| `cpu_type` | `host` | CPU passthrough mode |
-| `cores` / `memory` | `1` / `1024` | Build-time resources (not runtime) |
-| `timezone` | `US/Eastern` | System timezone |
-| ISO version | *(auto-managed)* | Pinned in `debian.auto.pkrvars.hcl` |
-
-> **Note:** Proxmox API credentials and runner IP are injected via CI secrets — never committed to the repo.
-
----
-
-## CI/CD Automation
-
-Five GitHub Actions workflows automate the full lifecycle:
-
-```mermaid
-flowchart TD
-    subgraph pr["PR Phase"]
-        PR([Pull Request]) --> V[validate.yml\nPacker init + validate]
-        PR --> F[format.yml\npacker fmt · Prettier\nshfmt · shellcheck]
-        PR --> DRV{{i915-compat.yml\nMetadata and known-bad policy}}
-    end
-
-    subgraph merge["Merge Phase"]
-        M([Merge to Main]) ==> B[build.yml\nBuild template\non Proxmox]
-        B ==> REL>GitHub Release]
-        B ==> TF>Terraform PR\nwith manifest]
-    end
-
-    subgraph sched["Scheduled"]
-        CRON((Every\nFriday)) --> ISO[check-debian-iso.yml\nNew Debian release?]
-        ISO -.->|New version| PR2>Auto-create PR]
-    end
-
-    classDef build fill:#02A8EF,stroke:#0196D4,color:#fff
-    classDef dispatch fill:#7B42BC,stroke:#6A35A3,color:#fff
-    classDef gate fill:#E57000,stroke:#CC6300,color:#fff
-    class B build
-    class TF dispatch
-    class DRV gate
-```
-
-| Workflow | Trigger | Purpose |
-|----------|---------|---------|
-| **validate** | PR | Runs `packer init` + `packer validate` |
-| **format** | PR | Enforces `packer fmt`, Prettier, shfmt, shellcheck |
-| **i915-compat** | PR (driver/kernel config changes) | Rejects unsupported, unverifiable or known-bad metadata/policy combinations; does not run GPU hardware |
-| **build** | Push to main | Full build → GitHub Release → Terraform manifest PR |
-| **check-debian-iso** | Weekly (Friday) | Scrapes debian.org for new ISO releases, auto-creates PR |
-
-### i915 SR-IOV Metadata and Runtime Acceptance
-
-The host (PF) and the guest (VF) **do not have to run the same
-`i915-sriov-dkms` version** — upstream states this explicitly, and the releases
-have split into kernel-specific lines:
-
-| Side | Kernel | Driver line | Why |
-|------|--------|-------------|-----|
-| **Guest** (this repo) | 6.12 (Debian 13) | `2025.12.10.x` | The newest line requires kernel 6.17+; this maintenance line supports 6.12–6.18. The older `2026.03.05.x` backport line fails to build on Debian 6.12.113+ ([upstream #502](https://github.com/strongtz/i915-sriov-dkms/issues/502)) |
-| **Host** (Proxmox, ansible repo) | 6.17 (pinned) | `2026.09.14` | Supports 6.17–7.2; verified rollback from the `2026.09.16` regression |
-
-**Guest kernel command line.** `scripts/bootstrap.sh` boots the guest with
-`i915.enable_guc=3 i915.xelp_enable_ccs=1 module_blacklist=xe quiet`. Host
-`2026.09.14` predates the release that turned Xe_LP CCS off by default
-(`2026.09.16` / `2025.12.10.1`), so the PF runs with CCS on. Without the
-parameter the `2025.12.10.x` guest runs with no `ccs0` and a 48-bit PPGTT, and
-OpenCL (Jellyfin HDR tone mapping) and OpenVINO (Immich ML) hang `rcs0`
-(`GPU HANG ecode 12:1`, 2026-11-06). Upstream
-[b93d4c2](https://github.com/strongtz/i915-sriov-dkms/commit/b93d4c2) fixes
-the VF default, but only from `2026.11.05`. The parameter assumes the PF has
-CCS on (it taints the guest kernel, which is expected): re-decide it with any
-host or guest driver change, and check OpenCL as well as the VA-API acceptance
-probes.
-
-Three independent axes must hold, and all three come from upstream data for the
-exact release tags — never from version ordering or a curated allowlist:
-
-1. **guest driver ↔ guest kernel** — the release notes of the exact tag must
-   cover `i915_sriov_kernel_series`
-2. **host driver ↔ host kernel** — same check against the pinned Proxmox kernel
-3. **PF ↔ VF IOV ABI** — `IOV_VERSION_{BASE,LATEST}_{MAJOR,MINOR}` from each
-   tag's `gt/iov/abi/iov_version_abi.h`, replayed through the upstream
-   handshake to see whether a common ABI can be negotiated
-
-`scripts/i915_compat.py` implements all three (stdlib only, no dependencies)
-and is shared verbatim with the ansible repo. **Unknown means fail**: a missing
-tag, unparsable release notes, a missing ABI header or a network failure all
-exit non-zero rather than passing unverified metadata. A separate local
-exclusion rejects host `2026.09.16` because real hardware failed despite
-agreeing metadata. It is not a host/guest compatibility allowlist.
-
-**A green metadata check or successful image build does not prove functional
-hardware.** Every checker report says `Hardware acceptance: NOT TESTED`.
-Acceptance must exercise the expected loaded stack after deployment, including
-hardware encoding and HDR tone mapping. Testing the currently installed driver
-does not validate an uninstalled candidate.
-
-After deploying new guest images, run the Ansible repository's
-`i915-acceptance.yml` current-stack workflow. It compares the loaded guest
-release/kernel against the declared target and runs generic nonroot H.264,
-HEVC and HDR GPU probes on every inventory worker, without depending on
-application deployments. It does not label that result as a proven host
-reboot. Host-driver upgrades have a separate post-reboot mode tied to the
-installation's saved pre-change identities.
-
-```console
-$ python3 scripts/i915_compat.py \
-    --host-version 2026.09.14 --host-kernel 6.17.13-13-pve \
-    --guest-version 2025.12.10.2 --guest-kernel 6.12
-# exit 0 = metadata/policy passed, hardware NOT TESTED
-# exit 1 = unsupported or blocked · 2 = metadata cannot be established
-```
-
-Two layers protect the image build:
-
-1. **CI** (`i915-compat.yml`) validates the declared guest driver + kernel
-   series against the host state on the ansible repo's `main`, and posts the
-   report as a sticky PR comment, without claiming runtime acceptance.
-2. **Build** (`scripts/bootstrap.sh`) re-checks the kernel the image *actually*
-   has (running plus every installed `/lib/modules` kernel) against
-   `i915_sriov_kernel_series` before installing the DKMS package, so a Debian
-   kernel bump fails the build instead of shipping a broken template. After
-   installing it, the build fails unless DKMS reports the module `installed`
-   for the kernel the image boots: `dpkg -i` exits 0 even when the DKMS
-   compile fails, which shipped a template without the SR-IOV driver
-   (build 143, kernel `6.12.115+deb13.1`).
-
-Renovate may only propose releases on the `2025.12.10.x` line
-(`allowedVersions` in `renovate.json`), and its PRs still have to pass
-`i915-compat` — a newer version number alone can never merge.
-
-The actual required-check list is versioned in
-`.github/required-status-checks.json`; it replaces the obsolete
-`Verify Proxmox host driver is updated` context with the metadata/policy gate.
-After the named checks exist and pass, an authorized administrator can apply
-the list without replacing other branch protections:
+Validate without touching Proxmox. The placeholder values are the ones `validate.yml` uses.
 
 ```sh
-gh api --method PATCH \
-  repos/Starktastic-Homelab/packer/branches/main/protection/required_status_checks \
-  --input .github/required-status-checks.json
-```
-
-**Moving the guest to a newer line** (e.g. when Debian ships a 6.17+ kernel):
-update `i915_sriov_version` and `i915_sriov_kernel_series` in
-`debian.auto.pkrvars.hcl`, widen `allowedVersions` in `renovate.json`, and let
-`i915-compat` confirm the new pair.
-
----
-
-## Cross-Repo Integration
-
-This repo is the **entry point** of a 4-stage infrastructure pipeline:
-
-```mermaid
-flowchart LR
-    P(["📦 Packer\nBuild Template"]) ==>|"manifest PR"| T(["🏗️ Terraform\nProvision VMs"])
-    T ==>|"repository dispatch"| A(["⚙️ Ansible\nConfigure Cluster"])
-    A ==>|"App-of-Apps"| K(["☸️ Apps\nDeploy Services"])
-
-    classDef packer fill:#02A8EF,stroke:#0196D4,color:#fff
-    classDef terraform fill:#7B42BC,stroke:#6A35A3,color:#fff
-    classDef ansible fill:#EE0000,stroke:#CC0000,color:#fff
-    classDef apps fill:#326CE5,stroke:#2B5FC2,color:#fff
-    class P packer
-    class T terraform
-    class A ansible
-    class K apps
-```
-
-1. **Packer** builds a template and generates `packer-manifest.json`
-2. The build workflow **creates a PR in the Terraform repo** with the updated manifest
-3. Terraform clones the new template into cluster VMs
-4. Terraform triggers Ansible via `repository_dispatch`
-5. Ansible provisions K3s and bootstraps ArgoCD
-6. ArgoCD reconciles the Apps repo onto the cluster
-
----
-
-## Prerequisites
-
-- **Proxmox VE** with API token access (VM.Allocate, VM.Clone, VM.Config.\*, Datastore.\*, Sys.Modify)
-- **Storage pools**: ISO storage (`local`) + ZFS disk pool (`local-zfs`)
-- **Network**: HTTP port 8000 accessible from Proxmox to the build runner (preseed serving)
-- **Packer** ≥ 1.10 with the `hashicorp/proxmox` plugin
-
----
-
-## Usage
-
-```bash
-# Initialize plugins
 packer init -upgrade .
+PKR_VAR_proxmox_api_url=https://proxmox.example.com:8006/api2/json \
+PKR_VAR_proxmox_api_token_id=id PKR_VAR_proxmox_api_token_secret=secret \
+  packer validate .
+```
 
-# Validate configuration
-packer validate .
+Test the checker offline, then ask upstream about the guest pin alone.
 
-# Build the template (requires Proxmox credentials)
+```sh
+python3 scripts/tests/test_i915_compat.py
+python3 scripts/i915_compat.py --guest-version 2025.12.10.2 --guest-kernel 6.12
+```
+
+Builds normally run in CI. A build by hand needs the real `PKR_VAR_proxmox_*` values and
+`PKR_VAR_runner_host_ip` set to an address the new VM can reach on port 8000. It replaces template 900.
+
+```sh
 packer build -force .
 ```
 
-> In practice, builds are triggered automatically via CI on merge to `main`.
+## Operations
+
+- [i915 SR-IOV: acceptance, checker and branch protection](docs/i915-sriov.md): hardware acceptance after
+  a new image, the checker's command line and exit codes, applying the required status checks, and
+  moving the guest to a newer driver line.
+- [Security policy](SECURITY.md): how to report a vulnerability.
+- Documentation changes outside `README.md` still start a build when they reach `main`. Put `[skip ci]`
+  in the subject of the commit that lands there (for a pull request, the squash subject) to avoid one.
 
 ---
 
-## License & Contributing
-
-This is a personal homelab project. Feel free to use it as inspiration for your own infrastructure. If you spot an issue or have a suggestion, [open an issue](../../issues) — contributions and feedback are welcome.
+<p align="center">
+  Part of <a href="https://github.com/Starktastic-Homelab"><b>Starktastic Homelab</b></a>:
+  <a href="https://github.com/Starktastic-Homelab/packer">packer</a> ·
+  <a href="https://github.com/Starktastic-Homelab/terraform">terraform</a> ·
+  <a href="https://github.com/Starktastic-Homelab/ansible">ansible</a> ·
+  <a href="https://github.com/Starktastic-Homelab/apps">apps</a><br>
+  <sub>Product logos in the diagrams are trademarks of their owners and are used only to label the components.</sub>
+</p>
