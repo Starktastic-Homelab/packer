@@ -25,10 +25,6 @@ GPU_PACKAGES = {
 LVM_DROPIN = """[Unit]
 Wants=network-online.target
 After=network-online.target
-
-[Service]
-ExecStartPre=/sbin/vgchange -ay retained
-ExecStartPre=-/sbin/vgchange -ay regen
 """
 
 
@@ -188,7 +184,32 @@ class TestImageLayout(unittest.TestCase):
         self.assertLess(upload, run)
 
     def test_lvm_dropin(self):
-        self.assertEqual(read("files/storage/rtslib-fb-targetctl.service.d/10-lvm.conf"), LVM_DROPIN)
+        dropin = read("files/storage/rtslib-fb-targetctl.service.d/10-lvm.conf")
+        self.assertEqual(dropin, LVM_DROPIN)
+        self.assertNotIn("ExecStartPre", dropin)
+
+    def test_storage_lvm_stock_activation_off(self):
+        commands = shell_commands(read("scripts/storage.sh"))
+
+        def at(pred):
+            return next(i for i, c in enumerate(commands) if pred(c))
+        install = at(lambda c: c.startswith("apt install -y targetcli-fb lvm2"))
+        edit = at(lambda c: "event_activation = 0" in c and "/etc/lvm/lvm.conf" in c)
+        check = at(lambda c: "lvmconfig global/event_activation" in c and "event_activation=0" in c)
+        mask = commands.index("systemctl mask lvm2-monitor.service blk-availability.service")
+        rebuild = commands.index("update-initramfs -u -k all")
+        verify = at(lambda c: c.startswith("for initrd in /boot/initrd.img-*"))
+        self.assertIn("apt-mark hold lvm2", commands)
+        self.assertLess(install, edit)
+        self.assertLess(edit, check)
+        self.assertLess(check, rebuild)
+        self.assertLess(rebuild, verify)
+        self.assertLess(install, mask)
+        script = read("scripts/storage.sh")
+        self.assertIn("unmkinitramfs", script)
+        self.assertIn("-path '*/etc/lvm/lvm.conf'", script)  # both unmkinitramfs layouts
+        self.assertIn("cmp -s", script)  # each initrd's lvm.conf equals the checked one
+        self.assertFalse([c for c in commands if "vgchange" in c])  # the image never activates a VG
 
     def test_build_workflow_order(self):
         text = read(".github/workflows/build.yml")

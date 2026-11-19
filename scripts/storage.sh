@@ -22,7 +22,33 @@ systemctl enable nftables
 # A restart of rtslib-fb-targetctl drops every session, so upgrades are deliberate.
 apt-mark hold python3-rtslib-fb targetcli-fb
 
-# Activate the VGs before targetctl restores the saved targets at boot.
+# Only the storage role may activate retained and regen (ADR 0017 F24). event_activation = 0 makes the udev pvscan
+# return before reading a disk, in the initramfs and the main system; explicit vgchange is unaffected.
+sed -i '0,/^global {/s//global {\n\tevent_activation = 0/' /etc/lvm/lvm.conf
+[ "$(lvmconfig global/event_activation)" = event_activation=0 ] || {
+  echo 'ERROR: global/event_activation is not 0 in /etc/lvm/lvm.conf.' >&2
+  exit 1
+}
+# Every LV is linear (nothing to monitor); blk-availability's stop is an unscoped blkdeactivate.
+systemctl mask lvm2-monitor.service blk-availability.service
+# An lvm2 upgrade runs an unscoped vgcfgbackup and may replace lvm.conf, so it is a deliberate, drained operation.
+apt-mark hold lvm2
+# The lvm2 hook copies /etc/lvm into the initramfs; base.sh built it before lvm2, and -u alone rebuilds one kernel.
+update-initramfs -u -k all
+for initrd in /boot/initrd.img-*; do
+  d=$(mktemp -d)
+  unmkinitramfs "$initrd" "$d"
+  # Flat, or early/ + main/ when the initrd carries early microcode.
+  conf=$(find "$d" -path '*/etc/lvm/lvm.conf' -type f)
+  if [ "$(printf '%s\n' "$conf" | grep -c .)" -ne 1 ] || ! cmp -s "$conf" /etc/lvm/lvm.conf; then
+    echo "ERROR: $initrd does not carry /etc/lvm/lvm.conf." >&2
+    rm -rf "$d"
+    exit 1
+  fi
+  rm -rf "$d"
+done
+
+# Orders targetctl after the network (the portal binds to it); it activates nothing (ADR 0017 F24).
 install -D -m 0644 /tmp/rtslib-fb-targetctl.service.d/10-lvm.conf \
   /etc/systemd/system/rtslib-fb-targetctl.service.d/10-lvm.conf
 rm -rf /tmp/rtslib-fb-targetctl.service.d
