@@ -14,7 +14,7 @@ echo 'Updating package lists...'
 apt update
 
 echo 'Installing storage packages...'
-apt install -y targetcli-fb lvm2 nftables prometheus-node-exporter nfs-common
+apt install -y targetcli-fb lvm2 nftables prometheus-node-exporter
 
 # Debian ships nftables disabled; the storage role only ever reloads it.
 systemctl enable nftables

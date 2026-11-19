@@ -168,7 +168,7 @@ class TestImageLayout(unittest.TestCase):
     def test_storage_script(self):
         script = read("scripts/storage.sh")
         commands = shell_commands(script)
-        self.assertIn("apt install -y targetcli-fb lvm2 nftables prometheus-node-exporter nfs-common", commands)
+        self.assertIn("apt install -y targetcli-fb lvm2 nftables prometheus-node-exporter", commands)
         self.assertIn("systemctl enable nftables", commands)
         self.assertIn("apt-mark hold python3-rtslib-fb targetcli-fb", commands)
         self.assertIn(

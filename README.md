@@ -47,7 +47,7 @@ template 900.
 | 3 | `base` | `scripts/base.sh` | Upgrades every package; installs cloud-init; replaces ifupdown with netplan and systemd-networkd. No GPU stack and no compiler. |
 | 4 | `base` | `cloud-init/` | Copied to `/etc/cloud`: NoCloud and ConfigDrive datasources, root disabled, a default user with passwordless sudo, and `growpart` so a clone with a larger disk grows its root filesystem. |
 | 5 | `k3s` | `source-k3s.pkr.hcl`, `scripts/k3s.sh` | Packer clones 900 into VM 901. `k3s.sh` installs DKMS, kernel headers, the NFS client, Intel firmware and the VA-API driver; installs the i915 driver between two gates; removes ModemManager; sets the kernel command line. |
-| 6 | `storage` | `source-storage.pkr.hcl`, `scripts/storage.sh` | Packer clones 900 into VM 902. `storage.sh` installs the LIO target (`targetcli-fb`, held), LVM, activated before the target restores, nftables, the node exporter and the NFS client, and fails if a compiler is present. |
+| 6 | `storage` | `source-storage.pkr.hcl`, `scripts/storage.sh` | Packer clones 900 into VM 902. `storage.sh` installs the LIO target (`targetcli-fb`, held), LVM, activated before the target restores, nftables and the node exporter, and fails if a compiler is present. |
 | 7 | all | `scripts/seal.sh` | Runs last in every build: resets the machine ID and the cloud-init state, and deletes the builder user and its sudoers file. Packer then turns the VM into a template. |
 | 8 | all | `build-{base,k3s,storage}.pkr.hcl` | Each `manifest` post-processor writes `packer-manifest.json` with an entry named after its source (`base`, `k3s`, `storage`): the template name and the release tag, and for k3s the i915 release and its kernel series. |
 
@@ -73,7 +73,7 @@ requests is the only manual step.
 | System | Debian 13, upgraded at build time, root login disabled, empty machine ID |
 | Network | netplan with systemd-networkd and systemd-resolved; ifupdown is removed |
 | GPU | k3s only: `i915-sriov-dkms` on the `2025.12.10.x` line for kernel 6.12, with the Intel VA-API driver and firmware |
-| Storage | storage only: the LIO target, LVM, nftables, the node exporter and the NFS client; no compiler |
+| Storage | storage only: the LIO target, LVM, nftables and the node exporter; no compiler |
 
 ### The i915 compatibility gate
 
