@@ -23,7 +23,7 @@ Two layers protect the image build:
 1. **CI** (`i915-compat.yml`) validates the declared guest driver + kernel
    series against the host state on the ansible repo's `main`, and posts the
    report as a sticky PR comment, without claiming runtime acceptance.
-2. **Build** (`scripts/bootstrap.sh`) re-checks the kernel the image *actually*
+2. **Build** (`scripts/k3s.sh`) re-checks the kernel the image *actually*
    has (running plus every installed `/lib/modules` kernel) against
    `i915_sriov_kernel_series` before installing the DKMS package, so a Debian
    kernel bump fails the build instead of shipping a broken template. After

@@ -245,6 +245,16 @@ class TestImageLayout(unittest.TestCase):
             text, r"# renovate: datasource=github-releases depName=strongtz/i915-sriov-dkms\ni915_sriov_version = "
         )
 
+    def test_docs_name_current_files(self):
+        docs = ["README.md", "CLAUDE.md"] + sorted(str(p.relative_to(ROOT)) for p in (ROOT / "docs").rglob("*")
+                                                   if p.suffix in (".md", ".svg"))
+        for rel in docs:
+            for old in ("bootstrap.sh", "delete_builder_user.sh", "source.pkr.hcl", "build.pkr.hcl",
+                        "proxmox-iso.debian-13", "template VM 900"):
+                self.assertNotIn(old, read(rel), f"{rel}: {old}")
+        for vmid in ("900", "901", "902"):
+            self.assertIn(vmid, read("README.md"))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

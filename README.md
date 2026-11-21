@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/diagrams/banner.svg" alt="packer, stage 1 of 4 of Starktastic Homelab: a Debian 13 golden image for Proxmox, rebuilt and released on every push to main. Template VM 900, Debian 13, three driver checks, five workflows.">
+  <img src="docs/diagrams/banner.svg" alt="packer, stage 1 of 4 of Starktastic Homelab: three Debian 13 golden images for Proxmox, rebuilt and released on every push to main. Templates 900 (base), 901 (k3s) and 902 (storage), Debian 13, three driver checks, five workflows.">
 </p>
 
 <p align="center">
@@ -17,7 +17,7 @@ upstream does not support, and a build fails rather than ship a template whose d
 ## Where it sits
 
 <p align="center">
-  <img src="docs/diagrams/chain.svg" alt="Where packer sits: the first of four stages, packer, terraform, ansible, apps. It takes in a Debian ISO and the pinned guest GPU driver, and hands over template VM 900, a release and the manifest pull request in terraform.">
+  <img src="docs/diagrams/chain.svg" alt="Where packer sits: the first of four stages, packer, terraform, ansible, apps. It takes in a Debian ISO and the pinned guest GPU driver, and hands over templates 900 (base), 901 (k3s) and 902 (storage), a release and two manifest pull requests in terraform.">
 </p>
 
 A push to `main` is a real build. It replaces templates 900 (base), 901 (k3s) and 902 (storage) on the
@@ -31,7 +31,7 @@ entry of the image manifest. Nothing downstream moves until a person merges them
 ### The build pipeline
 
 <p align="center">
-  <img src="docs/diagrams/build-pipeline.svg" alt="Build pipeline: the packer-build job boots the Debian installer in a new Proxmox VM, installs from a preseed served on port 8000, runs bootstrap.sh with its two build gates, adds the cloud-init configuration and removes the builder user. The manifest then feeds a GitHub release and a pull request in terraform.">
+  <img src="docs/diagrams/build-pipeline.svg" alt="Build pipeline: the base job boots the Debian installer in VM 900, installs from a preseed served on port 8000, runs base.sh, adds the cloud-init configuration and seals template 900 with seal.sh. The k3s and storage jobs then clone it in parallel: k3s.sh with its two build gates makes template 901, storage.sh makes template 902, and seal.sh seals each. The k3s manifest feeds a GitHub release and a pull request in terraform; the storage manifest feeds a second pull request.">
 </p>
 
 `build.yml` runs on every push to `main` and by hand; a push that touches only `README.md` or
