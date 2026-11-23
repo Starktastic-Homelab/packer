@@ -22,7 +22,7 @@ upstream does not support, and a build fails rather than ship a template whose d
 
 A push to `main` is a real build. It replaces templates 900 (base), 901 (k3s) and 902 (storage) on the
 Proxmox host, publishes a GitHub release and opens a pull request in
-[terraform](https://github.com/Starktastic-Homelab/terraform) for the k3s entry of the image manifest.
+[terraform](https://github.com/Starktastic-Homelab/terraform) for the k3s and storage entries of the image manifest.
 Nothing downstream moves until a person merges it. The
 [organization profile](https://github.com/Starktastic-Homelab) shows the whole chain.
 
@@ -31,7 +31,7 @@ Nothing downstream moves until a person merges it. The
 ### The build pipeline
 
 <p align="center">
-  <img src="docs/diagrams/build-pipeline.svg" alt="Build pipeline: the base job boots the Debian installer in VM 900, installs from a preseed served on port 8000, runs base.sh, adds the cloud-init configuration and seals template 900 with seal.sh. The k3s and storage jobs then clone it in parallel: k3s.sh with its two build gates makes template 901, storage.sh makes template 902, and seal.sh seals each. The k3s manifest feeds a GitHub release and a pull request in terraform; the storage template has no manifest pull request.">
+  <img src="docs/diagrams/build-pipeline.svg" alt="Build pipeline: the base job boots the Debian installer in VM 900, installs from a preseed served on port 8000, runs base.sh, adds the cloud-init configuration and seals template 900 with seal.sh. The k3s and storage jobs then clone it in parallel: k3s.sh with its two build gates makes template 901, storage.sh makes template 902, and seal.sh seals each. The k3s manifest feeds a GitHub release, and one pull request in terraform carries the k3s and storage entries.">
 </p>
 
 `build.yml` runs on every push to `main` and by hand; a push that touches only `README.md` or
@@ -59,11 +59,11 @@ compile fails, and one build shipped a template with the stock driver that way.
 
 The order is `base`, then `k3s` and `storage`, then two jobs on GitHub-hosted runners. After `k3s`,
 `create-release` publishes a release tagged `v<Debian version>.<build timestamp>` with the k3s manifest
-attached, and `push-manifest` merges the k3s entry by name into terraform's `packer-manifest.json` on a
-new branch `packer-build-<run>` and opens a pull request titled `Update k3s VM template (<template name>)`.
-`scripts/merge-manifest.sh` does the merge: it keeps the other entries, and the k3s entry stays at
-`builds[0]` until terraform selects by name. The storage template has no manifest pull request: terraform
-clones it by VM ID (902). Merging the pull request is the only manual step.
+attached. After `k3s` and `storage`, `push-manifest` merges the entry of every build that succeeded by name
+into terraform's `packer-manifest.json` on a new branch `packer-build-<run>` and opens one pull request
+titled `Update VM templates (<template names>)`. `scripts/merge-manifest.sh` does the merge: it keeps the
+other entries, a failed build keeps its old entry, and the k3s entry stays at `builds[0]` until terraform
+selects by name. Merging the pull request is the only manual step.
 
 | The templates | |
 |---|---|
@@ -130,7 +130,7 @@ so re-decide it with any host or guest driver change, and test OpenCL too.
 | `scripts/base.sh`, `scripts/k3s.sh`, `scripts/storage.sh` | In-guest provisioning per template; `k3s.sh` holds the two build gates |
 | `scripts/seal.sh` | Seals every template: machine ID, cloud-init state, builder user |
 | `cloud-init/` | `cloud.cfg` and the datasource list that end up in `/etc/cloud` |
-| `scripts/merge-manifest.sh` | Merges one template's manifest entry by name into terraform's `packer-manifest.json` |
+| `scripts/merge-manifest.sh` | Merges every successful build's manifest entry by name into terraform's `packer-manifest.json` |
 | `scripts/i915_compat.py`, `scripts/tests/` | The compatibility checker (standard library only), its offline tests, the image layout tests and the manifest merge tests |
 | `.github/required-status-checks.json` | The required status checks for `main`, kept in Git |
 | `renovate.json` | Renovate rules: GitHub Actions, the Packer plugin, and the i915 release held on its line |
@@ -139,7 +139,7 @@ so re-decide it with any host or guest driver change, and test OpenCL too.
 
 | Workflow | Runs on | What it does |
 |---|---|---|
-| `build.yml` | push to `main`, manual | Builds the base, then the k3s and storage templates on the self-hosted runner, publishes a release, opens the k3s manifest pull request in terraform |
+| `build.yml` | push to `main`, manual | Builds the base, then the k3s and storage templates on the self-hosted runner, publishes a release, opens the manifest pull request in terraform |
 | `validate.yml` | pull request | Runs the image layout and manifest merge tests, `packer init` and `packer validate`; skipped when only `README.md` or `renovate.json` changed |
 | `i915-compat.yml` | every pull request, manual | Runs the checker's tests, then checks the guest pin against the host pin in ansible and comments the report |
 | `format.yml` | pull request, manual | Runs `packer fmt`, Prettier, shfmt and shellcheck, and commits the formatting to the branch |

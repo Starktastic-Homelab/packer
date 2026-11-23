@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1100" height="1180" viewBox="0 0 1100 1180" role="img" aria-labelledby="t d">
   <title id="t">Build pipeline: three templates and one manifest pull request in terraform</title>
-  <desc id="d">build.yml runs three packer build jobs on the self-hosted runner. The base job comes first, in five steps: the proxmox-iso.base source boots the Debian 13 netinst ISO in VM 900 on Proxmox; http/preseed.cfg.tmpl, served over HTTP on port 8000, installs Debian unattended; scripts/base.sh upgrades the system, installs cloud-init and moves to netplan; the cloud-init directory is copied to /etc/cloud; scripts/seal.sh resets the identity and removes the builder user. The result is template 900 (base). The k3s and storage jobs then run in parallel, each cloning template 900 with proxmox-clone. The k3s job clones it into VM 901 and runs scripts/k3s.sh: a kernel-series gate, the DKMS driver install, a DKMS status gate, the GRUB command line and the ModemManager purge, then scripts/seal.sh, giving template 901 (k3s). The storage job clones it into VM 902 and runs scripts/storage.sh: targetcli-fb, LVM with stock activation off, nftables and the node exporter, then scripts/seal.sh, giving template 902 (storage). Each manifest post-processor writes packer-manifest.json. After k3s, create-release publishes a GitHub release and push-manifest opens the pull request packer-build-run in terraform with the k3s entry, merged by scripts/merge-manifest.sh. The storage template has no manifest pull request: terraform clones template 902 by VM ID. A person merges the pull request.</desc>
+  <desc id="d">build.yml runs three packer build jobs on the self-hosted runner. The base job comes first, in five steps: the proxmox-iso.base source boots the Debian 13 netinst ISO in VM 900 on Proxmox; http/preseed.cfg.tmpl, served over HTTP on port 8000, installs Debian unattended; scripts/base.sh upgrades the system, installs cloud-init and moves to netplan; the cloud-init directory is copied to /etc/cloud; scripts/seal.sh resets the identity and removes the builder user. The result is template 900 (base). The k3s and storage jobs then run in parallel, each cloning template 900 with proxmox-clone. The k3s job clones it into VM 901 and runs scripts/k3s.sh: a kernel-series gate, the DKMS driver install, a DKMS status gate, the GRUB command line and the ModemManager purge, then scripts/seal.sh, giving template 901 (k3s). The storage job clones it into VM 902 and runs scripts/storage.sh: targetcli-fb, LVM with stock activation off, nftables and the node exporter, then scripts/seal.sh, giving template 902 (storage). Each manifest post-processor writes packer-manifest.json. After k3s, create-release publishes a GitHub release. After k3s and storage, push-manifest opens one pull request packer-build-run in terraform with every built template's entry, k3s and storage, merged by name by scripts/merge-manifest.sh; a failed build keeps its old entry. A person merges the pull request.</desc>
   <defs>
     <radialGradient id="ga"><stop offset="0" stop-color="#3B82F6" stop-opacity=".55"/><stop offset="1" stop-color="#3B82F6" stop-opacity="0"/></radialGradient>
     <radialGradient id="gb"><stop offset="0" stop-color="#6366F1" stop-opacity=".45"/><stop offset="1" stop-color="#6366F1" stop-opacity="0"/></radialGradient>
@@ -226,6 +226,7 @@
 
   <!-- manifests to terraform -->
   <path class="edge" d="M389 915V974"/><path class="flow" d="M389 915V974"/><path class="head" d="M389 984l-5.5 -10h11.0z"/>
+  <path class="edge" d="M925 915V974"/><path class="flow" d="M925 915V974"/><path class="head" d="M925 984l-5.5 -10h11.0z"/>
   <rect class="pill" x="289" y="936" width="200" height="28" rx="14"/><text class="pillt mono" x="389" y="954.86" font-size="13.5" text-anchor="middle">packer-manifest.json</text>
 
   <rect class="card" x="30" y="984" width="500" height="126" rx="20"/><rect class="rim" x="30.5" y="984.5" width="499" height="125" rx="19.5"/>
@@ -236,12 +237,12 @@
   <path class="edge" d="M198 1058H214"/><path class="flow" d="M198 1058H214"/><path class="head" d="M223 1058l-10 -5.5v11.0z"/>
   <rect class="tile" x="224" y="1040" width="36" height="36" rx="10.8"/><use href="#i-terraform" x="231.2" y="1047.2" width="21.6" height="21.6"/>
   <text class="t1 mono" x="270" y="1063" font-size="14">packer-build-&lt;run&gt;</text>
-  <text class="t2" x="46" y="1094" font-size="12.5">the k3s entry, merged by name; it stays at builds[0] in terraform</text>
+  <text class="t2" x="46" y="1094" font-size="12.5">the k3s and storage entries, merged by name; k3s at builds[0]</text>
 
   <rect class="card" x="570" y="984" width="500" height="126" rx="20"/><rect class="rim" x="570.5" y="984.5" width="499" height="125" rx="19.5"/>
-  <text class="t1" x="586" y="1022" font-size="14" font-weight="700">No storage manifest pull request</text>
-  <text class="t2" x="586" y="1052" font-size="12.5">terraform clones template 902 by VM ID, so nothing reads</text>
-  <text class="t2" x="586" y="1072" font-size="12.5">the storage entry; the k3s merge keeps any other entries</text>
+  <text class="t1" x="586" y="1022" font-size="14" font-weight="700">One manifest pull request</text>
+  <text class="t2" x="586" y="1052" font-size="12.5">every build that succeeded replaces its entry by name;</text>
+  <text class="t2" x="586" y="1072" font-size="12.5">a failed build keeps its old entry, others are kept</text>
   <text class="t1 mono" x="586" y="1094" font-size="12.5">scripts/merge-manifest.sh</text>
 
   <path class="gate" d="M40 1144H84"/>

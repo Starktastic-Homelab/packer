@@ -8,9 +8,9 @@ packer → terraform → ansible → apps; the system overview is `../CLAUDE.md`
 
 - **Every push to `main` is a real build** (`.github/workflows/build.yml`): the self-hosted runner builds the base
   first (`packer build -force -only=...`), then k3s and storage, replacing templates 900, 901 and 902. The k3s
-  job publishes a GitHub release and opens a `packer-build-<run>` PR in `terraform` that merges the k3s
-  entry into terraform's manifest by name (`scripts/merge-manifest.sh`). The storage build opens no PR:
-  terraform clones template 902 by VM ID. Only
+  job publishes a GitHub release, and one `packer-build-<run>` PR in `terraform` merges every built
+  template's entry (k3s, storage) into terraform's manifest by name (`scripts/merge-manifest.sh`); a failed
+  build keeps its old entry. Only
   `README.md` and `renovate.json` are path-ignored, so docs-only commits (including this file) need `[skip ci]`
   in the subject.
 - `format.yml` pushes "style: apply automatic formatting" commits to PR branches; pull before pushing.
@@ -82,8 +82,8 @@ Changing a contract means changing both sides together; see `../CLAUDE.md`.
 
 - Image manifest → terraform: `build-*.pkr.hcl` (`post-processor "manifest"`, entry `name` = the build's
   source name `base`/`k3s`/`storage`), `config.pkr.hcl` (`vm_name`, `git_tag`), `.github/workflows/build.yml`
-  (`push-manifest`) and `scripts/merge-manifest.sh` (the k3s entry stays at `builds[0]` until terraform
-  selects by name).
+  (`push-manifest`, the k3s and storage entries, each with `artifact_id` and `custom_data.vm_name`) and
+  `scripts/merge-manifest.sh` (the k3s entry stays at `builds[0]` until terraform selects by name).
 - Guest i915 pair → ansible: top-level `i915_sriov_version` / `i915_sriov_kernel_series` in
   `debian.auto.pkrvars.hcl`, regex-read from `main` (keep `key = "value"`, defined once).
 - Host i915 pair ← ansible: read by `.github/workflows/i915-compat.yml`.

@@ -16,45 +16,67 @@ SCRIPT = ROOT / "scripts/merge-manifest.sh"
 
 
 def build(name, uuid):
-    return {"name": name, "packer_run_uuid": uuid, "custom_data": {"vm_name": f"packer-{name}-{uuid}"}}
+    return {
+        "name": name,
+        "artifact_id": {"k3s": "901", "storage": "902"}.get(name, "900"),
+        "packer_run_uuid": uuid,
+        "custom_data": {"vm_name": f"packer-{name}-{uuid}"},
+    }
+
+
+def needs(**jobs):
+    """push-manifest's toJSON(needs): {role: (result, [builds])}."""
+    return {
+        role: {"result": result, "outputs": {"manifest": json.dumps({"builds": builds}) + "\n"} if result == "success" else {}}
+        for role, (result, builds) in jobs.items()
+    }
 
 
 class TestMergeManifest(unittest.TestCase):
-    def merge(self, role, new, current):
+    def merge(self, needs_doc, current):
         with tempfile.TemporaryDirectory() as d:
             paths = []
-            for name, doc in (("new.json", new), ("current.json", current)):
+            for name, doc in (("needs.json", needs_doc), ("current.json", current)):
                 path = Path(d) / name
                 path.write_text(json.dumps(doc))
                 paths.append(str(path))
-            return subprocess.run(["bash", str(SCRIPT), role, *paths], capture_output=True, text=True)
+            return subprocess.run(["bash", str(SCRIPT), *paths], capture_output=True, text=True)
 
-    def merged(self, role, new, current):
-        result = self.merge(role, new, current)
+    def merged(self, needs_doc, current):
+        result = self.merge(needs_doc, current)
         self.assertEqual(result.returncode, 0, result.stderr)
         return json.loads(result.stdout)
 
-    def test_adds_k3s_first(self):
-        new = {"builds": [build("k3s", "new")], "last_run_uuid": "new"}
-        out = self.merged("k3s", new, {"builds": [build("debian-13", "d")], "last_run_uuid": "d"})
-        self.assertEqual([b["name"] for b in out["builds"]], ["k3s", "debian-13"])
-        self.assertEqual(out["builds"][0], build("k3s", "new"))
+    def test_merges_every_successful_build(self):
+        k3s, storage = build("k3s", "k"), build("storage", "s")
+        out = self.merged(needs(k3s=("success", [k3s]), storage=("success", [storage])),
+                          {"builds": [build("debian-13", "d")], "last_run_uuid": "d"})
+        self.assertEqual([b["name"] for b in out["builds"]], ["k3s", "debian-13", "storage"])
+        self.assertEqual(out["builds"][0], k3s)
+        self.assertEqual(out["builds"][2], storage)
+        self.assertIn(out["last_run_uuid"], ("k", "s"))
+
+    def test_failed_build_keeps_its_old_entry(self):
+        old_storage = build("storage", "old-s")
+        current = {"builds": [build("k3s", "old"), build("debian-13", "d"), old_storage], "last_run_uuid": "old"}
+        out = self.merged(needs(k3s=("success", [build("k3s", "new")]), storage=("failure", [])), current)
+        self.assertEqual(out["builds"], [build("k3s", "new"), build("debian-13", "d"), old_storage])
         self.assertEqual(out["last_run_uuid"], "new")
 
-    def test_replaces_old_k3s(self):
-        new = {"builds": [build("k3s", "older"), build("k3s", "new")], "last_run_uuid": "new"}
-        current = {"builds": [build("k3s", "old"), build("debian-13", "d")], "last_run_uuid": "old"}
-        out = self.merged("k3s", new, current)
-        self.assertEqual(out["builds"], [build("k3s", "new"), build("debian-13", "d")])
+    def test_replaces_old_entries(self):
+        current = {"builds": [build("k3s", "old"), build("debian-13", "d"), build("storage", "old-s")]}
+        out = self.merged(needs(k3s=("success", [build("k3s", "older"), build("k3s", "new")]),
+                                storage=("success", [build("storage", "new-s")])), current)
+        self.assertEqual(out["builds"], [build("k3s", "new"), build("debian-13", "d"), build("storage", "new-s")])
 
-    def test_keeps_other_entries(self):
-        storage = build("storage", "s")
-        current = {"builds": [build("k3s", "old"), storage], "last_run_uuid": "old"}
-        out = self.merged("k3s", {"builds": [build("k3s", "new")]}, current)
-        self.assertEqual(out["builds"], [build("k3s", "new"), storage])
+    def test_no_successful_build_fails_silently(self):
+        result = self.merge(needs(k3s=("failure", []), storage=("failure", [])), {"builds": [build("k3s", "old")]})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, "")
 
-    def test_missing_role_fails_silently(self):
-        result = self.merge("k3s", {"builds": [build("storage", "s")]}, {"builds": [build("k3s", "old")]})
+    def test_success_without_its_build_fails(self):
+        result = self.merge(needs(k3s=("success", [build("storage", "s")]), storage=("failure", [])),
+                            {"builds": [build("k3s", "old")]})
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(result.stdout, "")
 
@@ -62,8 +84,10 @@ class TestMergeManifest(unittest.TestCase):
         text = (ROOT / ".github/workflows/build.yml").read_text()
         job = re.split(r"(?m)^  push-manifest:\n", text)[1]
         job = re.split(r"(?m)^  [\w-]+:\n", job)[0]
-        self.assertIn("scripts/merge-manifest.sh k3s", job)
+        self.assertIn("NEEDS: ${{ toJSON(needs) }}", job)
+        self.assertIn('scripts/merge-manifest.sh "$RUNNER_TEMP/needs.json" packer-manifest.json', job)
         self.assertNotIn("jq --argjson", job)
+        self.assertNotIn("needs.k3s.outputs", job)
 
 
 if __name__ == "__main__":

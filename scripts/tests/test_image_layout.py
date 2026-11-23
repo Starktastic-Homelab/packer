@@ -220,16 +220,24 @@ class TestImageLayout(unittest.TestCase):
         text = read(".github/workflows/build.yml")
         jobs = workflow_jobs(text)
         self.assertEqual(set(jobs), {"base", "k3s", "storage", "create-release", "push-manifest"})
-        self.assertNotIn("outputs:", jobs["storage"])  # terraform reads no storage manifest entry
         self.assertRegex(text, r"(?m)^concurrency:\n  group: \S+\n  cancel-in-progress: false\n")
         self.assertIn("packer build -force -only='proxmox-iso.base' .", jobs["base"])
         self.assertNotIn("needs:", jobs["base"])
         for role in CLONES:
             self.assertIn("    needs: base\n", jobs[role])
             self.assertIn(f"packer build -force -only='proxmox-clone.{role}' .", jobs[role])
-        for job in ("create-release", "push-manifest"):
-            self.assertIn("    needs: k3s\n", jobs[job])
-            self.assertIn('select(.name=="k3s")', jobs[job])
+        for role in CLONES:  # push-manifest reads every clone build's manifest (D16)
+            self.assertIn("    outputs:\n      manifest: ${{ steps.get-manifest.outputs.file }}\n", jobs[role])
+        get_manifest = [re.split(r"\n      - name: Get Packer build manifest\n", jobs[role])[1] for role in CLONES]
+        self.assertEqual(get_manifest[0], get_manifest[1])
+        push = jobs["push-manifest"]
+        needs = re.search(r"(?m)^    needs: \[(.*)\]$", push)
+        self.assertIsNotNone(needs)
+        self.assertEqual([n.strip() for n in needs.group(1).split(",")], list(CLONES))
+        self.assertIn("    if: ${{ !cancelled() && contains(needs.*.result, 'success') }}\n", push)
+        # The release tag stays the k3s entry's.
+        self.assertIn("    needs: k3s\n", jobs["create-release"])
+        self.assertIn('select(.name=="k3s")', jobs["create-release"])
         self.assertNotIn(".builds[0]", text)  # select by name, never by index
 
     def test_image_test_runs_in_ci(self):
