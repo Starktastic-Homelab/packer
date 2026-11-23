@@ -57,7 +57,7 @@ stops the build instead of installing a driver that cannot support it. After the
 report the module as installed for the kernel the image boots. `dpkg -i` exits 0 even when the DKMS
 compile fails, and one build shipped a template with the stock driver that way.
 
-The order is `base`, then `k3s` and `storage`, then three jobs on GitHub-hosted runners. After `k3s`,
+The order is `base`, then `k3s` and `storage`, then two jobs on GitHub-hosted runners. After `k3s`,
 `create-release` publishes a release tagged `v<Debian version>.<build timestamp>` with the k3s manifest
 attached, and `push-manifest` merges the k3s entry by name into terraform's `packer-manifest.json` on a
 new branch `packer-build-<run>` and opens a pull request titled `Update k3s VM template (<template name>)`.
