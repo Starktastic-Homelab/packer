@@ -1,5 +1,10 @@
 build {
-  sources = ["source.proxmox-clone.storage"]
+  source "source.proxmox-clone.clone" {
+    name                 = "storage"
+    vm_id                = var.storage_vm_id
+    vm_name              = local.vm_name.storage
+    template_description = "Debian 13 storage template - ${formatdate("YYYY-MM-DD.hh:mm:ss.ZZZ", timestamp())}"
+  }
 
   provisioner "file" {
     destination = "/tmp"
@@ -25,7 +30,7 @@ build {
   post-processor "manifest" {
     custom_data = {
       vm_name = local.vm_name.storage
-      git_tag = "v${join(".", regex("(\\d+\\.\\d+\\.\\d+)-(\\d+)", local.vm_name.storage))}"
+      git_tag = local.git_tag.storage
     }
   }
 }

@@ -72,49 +72,69 @@ class TestImageLayout(unittest.TestCase):
         variables = read("variables.pkr.hcl")
         for name, default in (("base_vm_id", "900"), ("k3s_vm_id", "901"), ("storage_vm_id", "902"),
                               ("vm_name_prefix", '"packer"')):
-            self.assertRegex(variables, rf'variable "{name}" {{\n  default = {default}\n}}')
+            self.assertRegex(variables, rf'variable "{name}" {{\s*default\s*=\s*{default}\s*}}')
         self.assertNotIn('variable "vm_id"', variables)
         config = read("config.pkr.hcl")
         self.assertIn('debian = regex("debian-\\\\d+\\\\.\\\\d+\\\\.\\\\d+", var.iso_name)', config)
         self.assertIn('role => "${var.vm_name_prefix}-${role}-${local.debian}-${local.stamp}"', config)
-        self.assertIn('for role in ["base", "k3s", "storage"]', config)
+        # One copy of the role list: the template map; every other per-role local iterates it.
+        roles = re.search(r"(?m)^\s*templates\s*=\s*\{(.*)\}\s*$", config)
+        self.assertEqual(re.findall(r"(\w+)\s*=\s*var\.(\w+)_vm_id", roles[1]), [(r, r) for r in ROLES])
+        self.assertIn("for role, _ in local.templates :", config)
+        self.assertNotRegex(config, r"for \w+ in \[")
 
     def test_sources_and_manifests(self):
-        kinds = {"base": "proxmox-iso", "k3s": "proxmox-clone", "storage": "proxmox-clone"}
-        for role in ROLES:
-            source = read(f"source-{role}.pkr.hcl")
-            self.assertIn(f'source "{kinds[role]}" "{role}" {{', source)
-            self.assertRegex(source, setting("vm_id", f"var.{role}_vm_id"))
-            self.assertRegex(source, setting("vm_name", f"local.vm_name.{role}"))
+        sources = sorted(p.name for p in ROOT.glob("source-*.pkr.hcl"))
+        self.assertEqual(sources, ["source-base.pkr.hcl", "source-clone.pkr.hcl"])
+        base = read("source-base.pkr.hcl")
+        self.assertIn('source "proxmox-iso" "base" {', base)
+        self.assertRegex(base, setting("vm_id", "var.base_vm_id"))
+        self.assertRegex(base, setting("vm_name", "local.vm_name.base"))
+        self.assertIn('sources = ["source.proxmox-iso.base"]', read("build-base.pkr.hcl"))
+        clone = read("source-clone.pkr.hcl")
+        self.assertEqual(re.findall(r'(?m)^source "([\w-]+)" "(\w+)" \{', clone), [("proxmox-clone", "clone")])
+        for key in ("vm_id", "vm_name", "template_description"):
+            self.assertNotRegex(clone, rf"(?m)^\s*{key}\s*=")  # set per build: a build cannot override them
+        for role in CLONES:
             build = read(f"build-{role}.pkr.hcl")
-            self.assertIn(f'sources = ["source.{kinds[role]}.{role}"]', build)
-            manifest = build.split('post-processor "manifest"')[1]
-            self.assertRegex(manifest, setting("vm_name", f"local.vm_name.{role}"))
-            self.assertRegex(manifest, setting("git_tag", f'"v${{join(".", regex("(\\\\d+\\\\.\\\\d+\\\\.\\\\d+)-(\\\\d+)", local.vm_name.{role}))}}"'))
-            gpu_pair = "i915_sriov_version" in manifest and "i915_sriov_kernel_series" in manifest
-            self.assertEqual(gpu_pair, role == "k3s", role)
+            with self.subTest(role=role):
+                self.assertNotIn("sources =", build)
+                block = re.search(r'(?ms)^  source "source\.proxmox-clone\.clone" \{\n(.*?)^  \}', build)
+                self.assertIsNotNone(block)
+                self.assertRegex(block[1], setting("name", f'"{role}"'))
+                self.assertRegex(block[1], setting("vm_id", f"var.{role}_vm_id"))
+                self.assertRegex(block[1], setting("vm_name", f"local.vm_name.{role}"))
+                self.assertIn(f"Debian 13 {role} template", block[1])
+        for role in ROLES:
+            manifest = read(f"build-{role}.pkr.hcl").split('post-processor "manifest"')[1]
+            with self.subTest(role=role):
+                self.assertRegex(manifest, setting("vm_name", f"local.vm_name.{role}"))
+                self.assertRegex(manifest, setting("git_tag", f"local.git_tag.{role}"))
+                gpu_pair = "i915_sriov_version" in manifest and "i915_sriov_kernel_series" in manifest
+                self.assertEqual(gpu_pair, role == "k3s", role)
+        hcl = "".join(p.read_text() for p in sorted(ROOT.glob("*.pkr.hcl")))
+        self.assertEqual(hcl.count("regex(\"(\\\\d+"), 1)  # the git_tag regex lives once, in config.pkr.hcl
+        self.assertIn("git_tag = { for role, name in local.vm_name :", read("config.pkr.hcl"))
 
     def test_preseed_has_no_compiler(self):
         lines = re.findall(r"(?m)^d-i pkgsel/include string (.*)$", read("http/preseed.cfg.tmpl"))
         self.assertEqual(lines, ["qemu-guest-agent openssh-server"])
 
     def test_clone_sources_inject_key(self):
-        for role in CLONES:
-            source = read(f"source-{role}.pkr.hcl")
-            with self.subTest(role=role):
-                self.assertRegex(source, setting("ssh_username", "var.builder_creds.username"))
-                self.assertNotRegex(source, r"ssh_password|ssh_private_key_file|ssh_agent_auth|ssh_keypair_name")
-                self.assertRegex(source, setting("clone_vm_id", "var.base_vm_id"))
-                self.assertRegex(source, setting("task_timeout", '"10m"'))
-                self.assertRegex(source, setting("cloud_init", "true"))
-                self.assertRegex(source, setting("cloud_init_storage_pool", "var.disk_storage_pool"))
-                # proxmox-clone re-applies hardware from its own config, with plugin defaults otherwise.
-                for key, value in (("os", '"l26"'), ("machine", '"q35"'), ("cpu_type", "var.cpu_type"),
-                                   ("cores", "var.cores"), ("memory", "var.memory"),
-                                   ("scsi_controller", "var.scsi_controller"), ("qemu_agent", "true")):
-                    self.assertRegex(source, setting(key, value))
-                self.assertRegex(source, r'network_adapters \{\n\s+model\s+= "virtio"\n\s+bridge = var.network_adapter_bridge\n')
-                self.assertNotIn("disks {", source)  # clone keeps the base disk; declared disks are appended
+        source = read("source-clone.pkr.hcl")
+        self.assertRegex(source, setting("ssh_username", "var.builder_creds.username"))
+        self.assertNotRegex(source, r"ssh_password|ssh_private_key_file|ssh_agent_auth|ssh_keypair_name")
+        self.assertRegex(source, setting("clone_vm_id", "var.base_vm_id"))
+        self.assertRegex(source, setting("task_timeout", '"10m"'))
+        self.assertRegex(source, setting("cloud_init", "true"))
+        self.assertRegex(source, setting("cloud_init_storage_pool", "var.disk_storage_pool"))
+        # proxmox-clone re-applies hardware from its own config, with plugin defaults otherwise.
+        for key, value in (("os", '"l26"'), ("machine", '"q35"'), ("cpu_type", "var.cpu_type"),
+                           ("cores", "var.cores"), ("memory", "var.memory"),
+                           ("scsi_controller", "var.scsi_controller"), ("qemu_agent", "true")):
+            self.assertRegex(source, setting(key, value))
+        self.assertRegex(source, r'network_adapters \{\n\s+model\s+= "virtio"\n\s+bridge = var.network_adapter_bridge\n')
+        self.assertNotIn("disks {", source)  # clone keeps the base disk; declared disks are appended
 
     def test_seal_contents(self):
         for role in ROLES:
@@ -214,9 +234,8 @@ class TestImageLayout(unittest.TestCase):
     def test_build_workflow_order(self):
         text = read(".github/workflows/build.yml")
         jobs = workflow_jobs(text)
-        self.assertEqual(
-            set(jobs), {"base", "k3s", "storage", "create-release", "push-manifest", "push-storage-manifest"}
-        )
+        self.assertEqual(set(jobs), {"base", "k3s", "storage", "create-release", "push-manifest"})
+        self.assertNotIn("outputs:", jobs["storage"])  # terraform reads no storage manifest entry
         self.assertRegex(text, r"(?m)^concurrency:\n  group: \S+\n  cancel-in-progress: false\n")
         self.assertIn("packer build -force -only='proxmox-iso.base' .", jobs["base"])
         self.assertNotIn("needs:", jobs["base"])
@@ -226,15 +245,11 @@ class TestImageLayout(unittest.TestCase):
         for job in ("create-release", "push-manifest"):
             self.assertIn("    needs: k3s\n", jobs[job])
             self.assertIn('select(.name=="k3s")', jobs[job])
-        self.assertIn("    needs: storage\n", jobs["push-storage-manifest"])
-        self.assertIn('select(.name=="storage")', jobs["push-storage-manifest"])
-        merge = "'.builds = ([.builds[] | select(.name != $new.name)] + [$new] | sort_by(.name != \"k3s\"))"
-        for job in ("push-manifest", "push-storage-manifest"):
-            self.assertIn(merge, jobs[job])
         self.assertNotIn(".builds[0]", text)  # select by name, never by index
 
     def test_image_test_runs_in_ci(self):
-        self.assertIn("python3 scripts/tests/test_image_layout.py", read(".github/workflows/validate.yml"))
+        for test in ("test_image_layout.py", "test_merge_manifest.py"):
+            self.assertIn(f"python3 scripts/tests/{test}", read(".github/workflows/validate.yml"))
 
     def test_pkrvars_keys_unchanged(self):
         text = read("debian.auto.pkrvars.hcl")

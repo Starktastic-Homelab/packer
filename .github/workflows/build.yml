@@ -83,8 +83,6 @@ jobs:
     needs: base
     container:
       image: hashicorp/packer:light
-    outputs:
-      manifest: ${{ steps.get-manifest.outputs.file }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -98,13 +96,6 @@ jobs:
         run: |
           packer init -force -upgrade .
           packer build -force -only='proxmox-clone.storage' .
-
-      - name: Get Packer build manifest
-        id: get-manifest
-        run: |
-          echo 'file<<EOF' >> $GITHUB_OUTPUT
-          cat packer-manifest.json >> $GITHUB_OUTPUT
-          echo -e '\nEOF' >> $GITHUB_OUTPUT
 
   create-release:
     name: Create release
@@ -137,6 +128,12 @@ jobs:
           repository: Starktastic-Homelab/terraform
           token: ${{ secrets.ORG_DISPATCH_TOKEN }}
 
+      # After the terraform checkout, which cleans the workspace; only packer-manifest.json is committed.
+      - name: Checkout packer repository
+        uses: actions/checkout@v7
+        with:
+          path: packer
+
       - name: Create Pull Request
         env:
           GITHUB_TOKEN: ${{ secrets.ORG_DISPATCH_TOKEN }}
@@ -148,13 +145,11 @@ jobs:
           BRANCH_NAME=packer-build-${{ github.run_number }}
           git checkout -b $BRANCH_NAME
 
-          # Merge by name, keeping the other templates' entries; k3s stays at builds[0] for terraform's readers.
+          # Merge the k3s entry by name, keeping the other templates' entries.
           echo -e ${{ toJSON(needs.k3s.outputs.manifest) }} > "$RUNNER_TEMP/new.json"
-          NEW="$(jq -ce '[.builds[] | select(.name=="k3s")] | last' "$RUNNER_TEMP/new.json")"
-          jq --argjson new "$NEW" '.builds = ([.builds[] | select(.name != $new.name)] + [$new] | sort_by(.name != "k3s")) | .last_run_uuid = $new.packer_run_uuid' \
-            packer-manifest.json > "$RUNNER_TEMP/merged.json"
+          bash packer/scripts/merge-manifest.sh k3s "$RUNNER_TEMP/new.json" packer-manifest.json > "$RUNNER_TEMP/merged.json"
           mv "$RUNNER_TEMP/merged.json" packer-manifest.json
-          VM_NAME="$(jq -er '.custom_data.vm_name' <<<"$NEW")"
+          VM_NAME="$(jq -er '.builds[] | select(.name=="k3s") | .custom_data.vm_name' packer-manifest.json)"
 
           # Commit and push
           git add packer-manifest.json
@@ -167,45 +162,3 @@ jobs:
             --head $BRANCH_NAME \
             --title "Update k3s VM template ($VM_NAME)" \
             --body "This PR updates the k3s entry of the Packer manifest file with the latest build information."
-
-  push-storage-manifest:
-    name: Push storage manifest to terraform repo
-    runs-on: ubuntu-latest
-    needs: storage
-    steps:
-      - name: Checkout Terraform repository
-        uses: actions/checkout@v7
-        with:
-          repository: Starktastic-Homelab/terraform
-          token: ${{ secrets.ORG_DISPATCH_TOKEN }}
-
-      - name: Create Pull Request
-        env:
-          GITHUB_TOKEN: ${{ secrets.ORG_DISPATCH_TOKEN }}
-        run: |
-          git config user.name "GitHub Actions (Packer)"
-          git config user.email "actions.packer@github.com"
-
-          # Checkout branch
-          BRANCH_NAME=packer-build-${{ github.run_number }}-storage
-          git checkout -b $BRANCH_NAME
-
-          # Merge by name, keeping the other templates' entries; k3s stays at builds[0] for terraform's readers.
-          echo -e ${{ toJSON(needs.storage.outputs.manifest) }} > "$RUNNER_TEMP/new.json"
-          NEW="$(jq -ce '[.builds[] | select(.name=="storage")] | last' "$RUNNER_TEMP/new.json")"
-          jq --argjson new "$NEW" '.builds = ([.builds[] | select(.name != $new.name)] + [$new] | sort_by(.name != "k3s"))' \
-            packer-manifest.json > "$RUNNER_TEMP/merged.json"
-          mv "$RUNNER_TEMP/merged.json" packer-manifest.json
-          VM_NAME="$(jq -er '.custom_data.vm_name' <<<"$NEW")"
-
-          # Commit and push
-          git add packer-manifest.json
-          git commit -m "Update Packer storage manifest file - ${{ github.run_number }}"
-          git push -u origin $BRANCH_NAME
-
-          # Create PR
-          gh pr create \
-            --base main \
-            --head $BRANCH_NAME \
-            --title "Update storage VM template ($VM_NAME)" \
-            --body "This PR updates the storage entry of the Packer manifest file with the latest build information."

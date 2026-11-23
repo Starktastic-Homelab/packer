@@ -24,8 +24,10 @@ jobs:
         with:
           version: latest
 
-      - name: Test image layout
-        run: python3 scripts/tests/test_image_layout.py
+      - name: Test image layout and manifest merge
+        run: |
+          python3 scripts/tests/test_image_layout.py
+          python3 scripts/tests/test_merge_manifest.py
 
       - name: Validate
         env:

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1100" height="1180" viewBox="0 0 1100 1180" role="img" aria-labelledby="t d">
-  <title id="t">Build pipeline: three templates and two manifest pull requests in terraform</title>
-  <desc id="d">build.yml runs three packer build jobs on the self-hosted runner. The base job comes first, in five steps: the proxmox-iso.base source boots the Debian 13 netinst ISO in VM 900 on Proxmox; http/preseed.cfg.tmpl, served over HTTP on port 8000, installs Debian unattended; scripts/base.sh upgrades the system, installs cloud-init and moves to netplan; the cloud-init directory is copied to /etc/cloud; scripts/seal.sh resets the identity and removes the builder user. The result is template 900 (base). The k3s and storage jobs then run in parallel, each cloning template 900 with proxmox-clone. The k3s job clones it into VM 901 and runs scripts/k3s.sh: a kernel-series gate, the DKMS driver install, a DKMS status gate, the GRUB command line and the ModemManager purge, then scripts/seal.sh, giving template 901 (k3s). The storage job clones it into VM 902 and runs scripts/storage.sh: targetcli-fb, LVM with stock activation off, nftables and the node exporter, then scripts/seal.sh, giving template 902 (storage). Each manifest post-processor writes packer-manifest.json. After k3s, create-release publishes a GitHub release and push-manifest opens the pull request packer-build-run in terraform with the k3s entry. After storage, push-storage-manifest opens packer-build-run-storage with the storage entry. A person merges each pull request.</desc>
+  <title id="t">Build pipeline: three templates and one manifest pull request in terraform</title>
+  <desc id="d">build.yml runs three packer build jobs on the self-hosted runner. The base job comes first, in five steps: the proxmox-iso.base source boots the Debian 13 netinst ISO in VM 900 on Proxmox; http/preseed.cfg.tmpl, served over HTTP on port 8000, installs Debian unattended; scripts/base.sh upgrades the system, installs cloud-init and moves to netplan; the cloud-init directory is copied to /etc/cloud; scripts/seal.sh resets the identity and removes the builder user. The result is template 900 (base). The k3s and storage jobs then run in parallel, each cloning template 900 with proxmox-clone. The k3s job clones it into VM 901 and runs scripts/k3s.sh: a kernel-series gate, the DKMS driver install, a DKMS status gate, the GRUB command line and the ModemManager purge, then scripts/seal.sh, giving template 901 (k3s). The storage job clones it into VM 902 and runs scripts/storage.sh: targetcli-fb, LVM with stock activation off, nftables and the node exporter, then scripts/seal.sh, giving template 902 (storage). Each manifest post-processor writes packer-manifest.json. After k3s, create-release publishes a GitHub release and push-manifest opens the pull request packer-build-run in terraform with the k3s entry, merged by scripts/merge-manifest.sh. The storage template has no manifest pull request: terraform clones template 902 by VM ID. A person merges the pull request.</desc>
   <defs>
     <radialGradient id="ga"><stop offset="0" stop-color="#3B82F6" stop-opacity=".55"/><stop offset="1" stop-color="#3B82F6" stop-opacity="0"/></radialGradient>
     <radialGradient id="gb"><stop offset="0" stop-color="#6366F1" stop-opacity=".45"/><stop offset="1" stop-color="#6366F1" stop-opacity="0"/></radialGradient>
@@ -99,7 +99,7 @@
   <g clip-path="url(#clip)"><rect class="panel" width="1100" height="1180"/><g class="blob"><ellipse cx="957" cy="82.6" rx="429" ry="590" fill="url(#ga)"/><ellipse cx="110" cy="1144.6" rx="429" ry="590" fill="url(#gb)"/><ellipse cx="759" cy="1262.6" rx="385" ry="472" fill="url(#gc)"/></g></g>
 
   <text class="acc" x="40" y="52" font-size="14" font-weight="700" letter-spacing="3">BUILD PIPELINE</text>
-  <text class="t1" x="40" y="86" font-size="26" font-weight="800">Bake three templates, ship two manifests</text>
+  <text class="t1" x="40" y="86" font-size="26" font-weight="800">Bake three templates, ship one manifest</text>
   <g class="t2" font-size="13.5">
     <path class="edge" d="M700 48H744"/><path class="flow" d="M700 48H744"/>
     <text x="754" y="52.5">next step</text>
@@ -161,7 +161,7 @@
   <circle class="badge" cx="62" cy="630" r="12"/><text class="badget" x="62" y="634.5" font-size="13" font-weight="800" text-anchor="middle">6</text>
   <circle class="badge" cx="62" cy="682" r="12"/><text class="badget" x="62" y="686.5" font-size="13" font-weight="800" text-anchor="middle">7</text>
   <circle class="badge" cx="62" cy="850" r="12"/><text class="badget" x="62" y="854.5" font-size="13" font-weight="800" text-anchor="middle">8</text>
-  <rect class="wf" x="86" y="616" width="170" height="28" rx="8"/><text class="wft mono" x="96" y="634.55" font-size="13">source-k3s.pkr.hcl</text>
+  <rect class="wf" x="86" y="616" width="170" height="28" rx="8"/><text class="wft mono" x="96" y="634.55" font-size="13">source-clone.pkr.hcl</text>
   <rect class="wf" x="86" y="668" width="170" height="28" rx="8"/><text class="wft mono" x="96" y="686.55" font-size="13">scripts/k3s.sh</text>
   <rect class="wf" x="86" y="836" width="170" height="28" rx="8"/><text class="wft mono" x="96" y="854.55" font-size="13">scripts/seal.sh</text>
   <g class="t1" font-size="15" font-weight="700">
@@ -199,7 +199,7 @@
   <circle class="badge" cx="602" cy="630" r="12"/><text class="badget" x="602" y="634.5" font-size="13" font-weight="800" text-anchor="middle">9</text>
   <circle class="badge" cx="602" cy="682" r="12"/><text class="badget" x="602" y="686.5" font-size="13" font-weight="800" text-anchor="middle">10</text>
   <circle class="badge" cx="602" cy="850" r="12"/><text class="badget" x="602" y="854.5" font-size="13" font-weight="800" text-anchor="middle">11</text>
-  <rect class="wf" x="626" y="616" width="200" height="28" rx="8"/><text class="wft mono" x="636" y="634.55" font-size="13">source-storage.pkr.hcl</text>
+  <rect class="wf" x="626" y="616" width="200" height="28" rx="8"/><text class="wft mono" x="636" y="634.55" font-size="13">source-clone.pkr.hcl</text>
   <rect class="wf" x="626" y="668" width="200" height="28" rx="8"/><text class="wft mono" x="636" y="686.55" font-size="13">scripts/storage.sh</text>
   <rect class="wf" x="626" y="836" width="200" height="28" rx="8"/><text class="wft mono" x="636" y="854.55" font-size="13">scripts/seal.sh</text>
   <g class="t1" font-size="15" font-weight="700">
@@ -227,8 +227,6 @@
   <!-- manifests to terraform -->
   <path class="edge" d="M389 915V974"/><path class="flow" d="M389 915V974"/><path class="head" d="M389 984l-5.5 -10h11.0z"/>
   <rect class="pill" x="289" y="936" width="200" height="28" rx="14"/><text class="pillt mono" x="389" y="954.86" font-size="13.5" text-anchor="middle">packer-manifest.json</text>
-  <path class="edge" d="M925 915V974"/><path class="flow" d="M925 915V974"/><path class="head" d="M925 984l-5.5 -10h11.0z"/>
-  <rect class="pill" x="825" y="936" width="200" height="28" rx="14"/><text class="pillt mono" x="925" y="954.86" font-size="13.5" text-anchor="middle">packer-manifest.json</text>
 
   <rect class="card" x="30" y="984" width="500" height="126" rx="20"/><rect class="rim" x="30.5" y="984.5" width="499" height="125" rx="19.5"/>
   <rect class="wf" x="46" y="1000" width="150" height="28" rx="8"/><text class="wft mono" x="56" y="1018.55" font-size="13">create-release</text>
@@ -241,14 +239,12 @@
   <text class="t2" x="46" y="1094" font-size="12.5">the k3s entry, merged by name; it stays at builds[0] in terraform</text>
 
   <rect class="card" x="570" y="984" width="500" height="126" rx="20"/><rect class="rim" x="570.5" y="984.5" width="499" height="125" rx="19.5"/>
-  <rect class="wf" x="586" y="1000" width="212" height="28" rx="8"/><text class="wft mono" x="596" y="1018.55" font-size="13">push-storage-manifest</text>
-  <path class="edge" d="M800 1014H816"/><path class="flow" d="M800 1014H816"/><path class="head" d="M825 1014l-10 -5.5v11.0z"/>
-  <rect class="tile" x="826" y="996" width="36" height="36" rx="10.8"/><use href="#i-terraform" x="833.2" y="1003.2" width="21.6" height="21.6"/>
-  <text class="t2" x="872" y="1018.5" font-size="13">pull request in terraform</text>
-  <text class="t1 mono" x="586" y="1063" font-size="14">packer-build-&lt;run&gt;-storage</text>
-  <text class="t2" x="586" y="1094" font-size="12.5">the storage entry, merged by name; the other entries are kept</text>
+  <text class="t1" x="586" y="1022" font-size="14" font-weight="700">No storage manifest pull request</text>
+  <text class="t2" x="586" y="1052" font-size="12.5">terraform clones template 902 by VM ID, so nothing reads</text>
+  <text class="t2" x="586" y="1072" font-size="12.5">the storage entry; the k3s merge keeps any other entries</text>
+  <text class="t1 mono" x="586" y="1094" font-size="12.5">scripts/merge-manifest.sh</text>
 
   <path class="gate" d="M40 1144H84"/>
-  <rect class="hum" x="92" y="1130" width="208" height="28" rx="14"/><text class="humt" x="196" y="1148.68" font-size="13" text-anchor="middle">a person merges each one</text>
-  <text class="t3" x="314" y="1148.5" font-size="12.5">Nothing downstream runs until a pull request is merged. Only the three build jobs use the self-hosted runner.</text>
+  <rect class="hum" x="92" y="1130" width="208" height="28" rx="14"/><text class="humt" x="196" y="1148.68" font-size="13" text-anchor="middle">a person merges it</text>
+  <text class="t3" x="314" y="1148.5" font-size="12.5">Nothing downstream runs until the pull request is merged. Only the three build jobs use the self-hosted runner.</text>
 </svg>

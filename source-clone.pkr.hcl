@@ -1,4 +1,4 @@
-source "proxmox-clone" "storage" {
+source "proxmox-clone" "clone" {
   proxmox_url              = var.proxmox_api_url
   username                 = var.proxmox_api_token_id
   token                    = var.proxmox_api_token_secret
@@ -7,9 +7,6 @@ source "proxmox-clone" "storage" {
   task_timeout             = "10m"
 
   clone_vm_id             = var.base_vm_id
-  vm_id                   = var.storage_vm_id
-  vm_name                 = local.vm_name.storage
-  template_description    = "Debian 13 storage template - ${formatdate("YYYY-MM-DD.hh:mm:ss.ZZZ", timestamp())}"
   os                      = "l26"
   scsi_controller         = var.scsi_controller
   cpu_type                = var.cpu_type

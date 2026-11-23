@@ -8,8 +8,9 @@ packer → terraform → ansible → apps; the system overview is `../CLAUDE.md`
 
 - **Every push to `main` is a real build** (`.github/workflows/build.yml`): the self-hosted runner builds the base
   first (`packer build -force -only=...`), then k3s and storage, replacing templates 900, 901 and 902. The k3s
-  job publishes a GitHub release and opens a `packer-build-<run>` PR in `terraform`; the storage job opens
-  its own `packer-build-<run>-storage` PR. Both merge their entry into terraform's manifest by name. Only
+  job publishes a GitHub release and opens a `packer-build-<run>` PR in `terraform` that merges the k3s
+  entry into terraform's manifest by name (`scripts/merge-manifest.sh`). The storage build opens no PR:
+  terraform clones template 902 by VM ID. Only
   `README.md` and `renovate.json` are path-ignored, so docs-only commits (including this file) need `[skip ci]`
   in the subject.
 - `format.yml` pushes "style: apply automatic formatting" commits to PR branches; pull before pushing.
@@ -25,6 +26,7 @@ PKR_VAR_proxmox_api_token_id=id PKR_VAR_proxmox_api_token_secret=secret \
   packer validate .                          # placeholders from validate.yml; builds nothing
 python3 scripts/tests/test_i915_compat.py    # offline; I915_COMPAT_LIVE=1 adds a live GitHub test
 python3 scripts/tests/test_image_layout.py   # offline; pins the three-image layout
+python3 scripts/tests/test_merge_manifest.py # offline; needs bash and jq
 shellcheck scripts/*.sh
 shfmt -i 2 -ci -s -d scripts/
 pre-commit run --files <changed files>       # the packer-fmt hook rewrites the whole repo
@@ -52,10 +54,10 @@ what couldn't. "Validated" is not "built": only a real build proves the image, a
 - Driver 2026.05.03 failed DKMS (`BUILD_EXCLUSIVE` vs Debian kernel strings) and was reverted (#93).
 - ModemManager is purged because it interferes with Zigbee USB serial adapters (#81).
 - `seal.sh` runs last in every build and needs `skip_clean = true`: it deletes the user Packer is logged in as.
-- Clone sources set only `ssh_username`, so the plugin injects an ephemeral key through cloud-init. They must
+- The clone source sets only `ssh_username`, so the plugin injects an ephemeral key through cloud-init. It must
   repeat the hardware settings: `proxmox-clone` re-applies its own (defaults otherwise).
 - `-force` deletes whatever VM holds 900, 901 or 902; confirm those IDs are free before a first build.
-- The manifest `git_tag` is regex-derived from `vm_name` (`config.pkr.hcl`, `build-*.pkr.hcl`); changing
+- The manifest `git_tag` is regex-derived from `vm_name` (`local.git_tag` in `config.pkr.hcl`); changing
   the `vm_name` format breaks release tagging.
 - The ISO comes from Debian `release/current/`: after a point release the pinned ISO disappears and builds
   fail until the check-debian-iso PR merges. When Debian 14 becomes current, `k3s.sh` fails the
@@ -78,9 +80,10 @@ what couldn't. "Validated" is not "built": only a real build proves the image, a
 
 Changing a contract means changing both sides together; see `../CLAUDE.md`.
 
-- Image manifest → terraform: `build-*.pkr.hcl` (`post-processor "manifest"`, entry `name` = source name
-  `base`/`k3s`/`storage`), `config.pkr.hcl` (`vm_name`), `.github/workflows/build.yml` (`push-manifest`
-  and `push-storage-manifest` jobs; the k3s entry stays at `builds[0]` until terraform selects by name).
+- Image manifest → terraform: `build-*.pkr.hcl` (`post-processor "manifest"`, entry `name` = the build's
+  source name `base`/`k3s`/`storage`), `config.pkr.hcl` (`vm_name`, `git_tag`), `.github/workflows/build.yml`
+  (`push-manifest`) and `scripts/merge-manifest.sh` (the k3s entry stays at `builds[0]` until terraform
+  selects by name).
 - Guest i915 pair → ansible: top-level `i915_sriov_version` / `i915_sriov_kernel_series` in
   `debian.auto.pkrvars.hcl`, regex-read from `main` (keep `key = "value"`, defined once).
 - Host i915 pair ← ansible: read by `.github/workflows/i915-compat.yml`.

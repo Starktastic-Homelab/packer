@@ -32,7 +32,7 @@ build {
   post-processor "manifest" {
     custom_data = {
       vm_name = local.vm_name.base
-      git_tag = "v${join(".", regex("(\\d+\\.\\d+\\.\\d+)-(\\d+)", local.vm_name.base))}"
+      git_tag = local.git_tag.base
     }
   }
 }

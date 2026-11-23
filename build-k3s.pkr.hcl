@@ -1,5 +1,10 @@
 build {
-  sources = ["source.proxmox-clone.k3s"]
+  source "source.proxmox-clone.clone" {
+    name                 = "k3s"
+    vm_id                = var.k3s_vm_id
+    vm_name              = local.vm_name.k3s
+    template_description = "Debian 13 k3s template - ${formatdate("YYYY-MM-DD.hh:mm:ss.ZZZ", timestamp())}"
+  }
 
   provisioner "shell" {
     execute_command = "sudo env {{ .Vars }} bash '{{ .Path }}'"
@@ -24,7 +29,7 @@ build {
   post-processor "manifest" {
     custom_data = {
       vm_name                  = local.vm_name.k3s
-      git_tag                  = "v${join(".", regex("(\\d+\\.\\d+\\.\\d+)-(\\d+)", local.vm_name.k3s))}"
+      git_tag                  = local.git_tag.k3s
       i915_sriov_version       = var.i915_sriov_version
       i915_sriov_kernel_series = var.i915_sriov_kernel_series
     }
