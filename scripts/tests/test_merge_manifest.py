@@ -80,6 +80,13 @@ class TestMergeManifest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(result.stdout, "")
 
+    def test_later_role_without_its_build_prints_nothing(self):
+        # A good k3s merge before the failing storage one must not reach stdout: the script prints once, at the end.
+        result = self.merge(needs(k3s=("success", [build("k3s", "k")]), storage=("success", [build("k3s", "x")])),
+                            {"builds": [build("k3s", "old")]})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, "")
+
     def test_push_manifest_uses_script(self):
         text = (ROOT / ".github/workflows/build.yml").read_text()
         job = re.split(r"(?m)^  push-manifest:\n", text)[1]
