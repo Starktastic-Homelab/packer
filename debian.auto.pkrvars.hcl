@@ -1,4 +1,4 @@
-iso_name = "debian-13.7.0-amd64-netinst.iso"
+iso_name = "debian-13.8.0-amd64-netinst.iso"
 
 # Guest (VF) i915-sriov-dkms release. Deliberately on the 2025.12.10.x
 # maintenance line for legacy kernels (6.12–6.18), not the newest release:
