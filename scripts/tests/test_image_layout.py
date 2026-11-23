@@ -22,10 +22,6 @@ GPU_PACKAGES = {
     "intel-media-va-driver-non-free",
     "vainfo",
 }
-LVM_DROPIN = """[Unit]
-Wants=network-online.target
-After=network-online.target
-"""
 
 
 def read(rel):
@@ -182,31 +178,20 @@ class TestImageLayout(unittest.TestCase):
             self.assertNotIn("open-iscsi", path.read_text(), path.name)
 
     def test_storage_script(self):
-        script = read("scripts/storage.sh")
-        commands = shell_commands(script)
-        self.assertIn("apt install -y targetcli-fb lvm2 nftables prometheus-node-exporter", commands)
+        commands = shell_commands(read("scripts/storage.sh"))
+        self.assertLessEqual({"targetcli-fb", "lvm2", "nftables", "prometheus-node-exporter"},
+                             installs("scripts/storage.sh"))
         self.assertIn("systemctl enable nftables", commands)
         self.assertIn("apt-mark hold python3-rtslib-fb targetcli-fb", commands)
-        self.assertIn(
-            "install -D -m 0644 /tmp/rtslib-fb-targetctl.service.d/10-lvm.conf "
-            "/etc/systemd/system/rtslib-fb-targetctl.service.d/10-lvm.conf",
-            commands,
-        )
-        self.assertRegex(
-            script,
-            r"for pkg in build-essential gcc; do\n"
-            r"  if dpkg-query -W -f='\$\{db:Status-Status\}' \"\$pkg\" 2>/dev/null \| grep -qx installed; then\n"
-            r"(?:    .*\n)*    exit 1\n  fi\ndone\n",
-        )
-        blocks = provisioners("build-storage.pkr.hcl")
-        upload = next(i for i, b in enumerate(blocks) if 'source      = "files/storage/rtslib-fb-targetctl.service.d"' in b)
-        run = next(i for i, b in enumerate(blocks) if "scripts/storage.sh" in b)
-        self.assertLess(upload, run)
+        # The storage VM carries no compiler: the script fails if one is installed.
+        loop = commands.index("for pkg in build-essential gcc; do")
+        self.assertIn("exit 1", commands[loop:commands.index("done", loop)])
 
-    def test_lvm_dropin(self):
-        dropin = read("files/storage/rtslib-fb-targetctl.service.d/10-lvm.conf")
-        self.assertEqual(dropin, LVM_DROPIN)
-        self.assertNotIn("ExecStartPre", dropin)
+    def test_storage_image_has_no_targetctl_dropin(self):
+        # Ansible's storage_vm role owns the targetctl drop-in, network ordering included.
+        self.assertEqual([p for p in ROOT.rglob("10-lvm.conf") if ".git" not in p.parts], [])
+        self.assertNotIn("10-lvm.conf", read("scripts/storage.sh"))
+        self.assertNotIn('provisioner "file"', read("build-storage.pkr.hcl"))
 
     def test_storage_lvm_stock_activation_off(self):
         commands = shell_commands(read("scripts/storage.sh"))

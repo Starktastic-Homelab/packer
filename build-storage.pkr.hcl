@@ -6,11 +6,6 @@ build {
     template_description = "Debian 13 storage template - ${formatdate("YYYY-MM-DD.hh:mm:ss.ZZZ", timestamp())}"
   }
 
-  provisioner "file" {
-    destination = "/tmp"
-    source      = "files/storage/rtslib-fb-targetctl.service.d"
-  }
-
   provisioner "shell" {
     execute_command = "sudo env {{ .Vars }} bash '{{ .Path }}'"
     script          = "scripts/storage.sh"

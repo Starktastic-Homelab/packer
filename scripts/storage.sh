@@ -48,11 +48,6 @@ for initrd in /boot/initrd.img-*; do
   rm -rf "$d"
 done
 
-# Orders targetctl after the network (the portal binds to it); it activates nothing (ADR 0017 F24).
-install -D -m 0644 /tmp/rtslib-fb-targetctl.service.d/10-lvm.conf \
-  /etc/systemd/system/rtslib-fb-targetctl.service.d/10-lvm.conf
-rm -rf /tmp/rtslib-fb-targetctl.service.d
-
 echo 'Removing unnecessary packages...'
 apt autoremove -y
 apt clean

@@ -129,7 +129,6 @@ so re-decide it with any host or guest driver change, and test OpenCL too.
 | `http/preseed.cfg.tmpl` | The Debian installer's answers |
 | `scripts/base.sh`, `scripts/k3s.sh`, `scripts/storage.sh` | In-guest provisioning per template; `k3s.sh` holds the two build gates |
 | `scripts/seal.sh` | Seals every template: machine ID, cloud-init state, builder user |
-| `files/storage/` | The `rtslib-fb-targetctl` drop-in the storage template installs |
 | `cloud-init/` | `cloud.cfg` and the datasource list that end up in `/etc/cloud` |
 | `scripts/merge-manifest.sh` | Merges one template's manifest entry by name into terraform's `packer-manifest.json` |
 | `scripts/i915_compat.py`, `scripts/tests/` | The compatibility checker (standard library only), its offline tests, the image layout tests and the manifest merge tests |
