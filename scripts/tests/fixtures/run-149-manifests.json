@@ -1,0 +1,38 @@
+{
+  "k3s": {
+    "builds": [
+      {
+        "name": "clone",
+        "builder_type": "proxmox-clone",
+        "build_time": 1795494149,
+        "files": null,
+        "artifact_id": "901",
+        "packer_run_uuid": "cf6aac61-e94f-56d1-df83-4d5b12a7be6a",
+        "custom_data": {
+          "git_tag": "v13.8.0.20261124041357",
+          "i915_sriov_kernel_series": "6.12",
+          "i915_sriov_version": "2025.12.10.2",
+          "vm_name": "packer-k3s-debian-13.8.0-20261124041357"
+        }
+      }
+    ],
+    "last_run_uuid": "cf6aac61-e94f-56d1-df83-4d5b12a7be6a"
+  },
+  "storage": {
+    "builds": [
+      {
+        "name": "clone",
+        "builder_type": "proxmox-clone",
+        "build_time": 1795493620,
+        "files": null,
+        "artifact_id": "902",
+        "packer_run_uuid": "84453102-05c4-9f06-c665-89718bb6b36b",
+        "custom_data": {
+          "git_tag": "v13.8.0.20261124041159",
+          "vm_name": "packer-storage-debian-13.8.0-20261124041159"
+        }
+      }
+    ],
+    "last_run_uuid": "84453102-05c4-9f06-c665-89718bb6b36b"
+  }
+}

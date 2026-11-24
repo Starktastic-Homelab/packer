@@ -33,6 +33,7 @@ build {
     custom_data = {
       vm_name = local.vm_name.base
       git_tag = local.git_tag.base
+      role    = source.name
     }
   }
 }

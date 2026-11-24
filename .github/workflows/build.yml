@@ -120,7 +120,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           # Fails when the k3s entry is missing.
-          GIT_TAG="$(jq -er '[.builds[] | select(.name=="k3s")] | last | .custom_data.git_tag' manifest.json)"
+          GIT_TAG="$(jq -er '[.builds[] | select(.custom_data.role=="k3s")] | last | .custom_data.git_tag' manifest.json)"
           gh release create "$GIT_TAG" \
             --generate-notes \
             --latest \
