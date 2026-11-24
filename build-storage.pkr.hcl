@@ -26,6 +26,7 @@ build {
     custom_data = {
       vm_name = local.vm_name.storage
       git_tag = local.git_tag.storage
+      role    = source.name
     }
   }
 }

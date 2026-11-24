@@ -106,6 +106,9 @@ class TestImageLayout(unittest.TestCase):
             with self.subTest(role=role):
                 self.assertRegex(manifest, setting("vm_name", f"local.vm_name.{role}"))
                 self.assertRegex(manifest, setting("git_tag", f"local.git_tag.{role}"))
+                # Packer 1.16 names manifest builds after the source label (hashicorp/packer#12482); readers
+                # select by this role instead.
+                self.assertRegex(manifest, setting("role", "source.name"))
                 gpu_pair = "i915_sriov_version" in manifest and "i915_sriov_kernel_series" in manifest
                 self.assertEqual(gpu_pair, role == "k3s", role)
         hcl = "".join(p.read_text() for p in sorted(ROOT.glob("*.pkr.hcl")))
@@ -237,7 +240,8 @@ class TestImageLayout(unittest.TestCase):
         self.assertIn("    if: ${{ !cancelled() && contains(needs.*.result, 'success') }}\n", push)
         # The release tag stays the k3s entry's.
         self.assertIn("    needs: k3s\n", jobs["create-release"])
-        self.assertIn('select(.name=="k3s")', jobs["create-release"])
+        self.assertIn('select(.custom_data.role=="k3s")', jobs["create-release"])
+        self.assertNotIn("select(.name", jobs["create-release"])  # Packer may write the source label as .name
         self.assertNotIn(".builds[0]", text)  # select by name, never by index
 
     def test_image_test_runs_in_ci(self):

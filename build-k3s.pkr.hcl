@@ -30,6 +30,7 @@ build {
     custom_data = {
       vm_name                  = local.vm_name.k3s
       git_tag                  = local.git_tag.k3s
+      role                     = source.name
       i915_sriov_version       = var.i915_sriov_version
       i915_sriov_kernel_series = var.i915_sriov_kernel_series
     }

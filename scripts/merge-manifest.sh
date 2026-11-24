@@ -17,7 +17,10 @@ if [[ -z $roles ]]; then
 fi
 
 for role in $roles; do
-  entry=$(jq -ce --arg role "$role" '.[$role].outputs.manifest | fromjson | [.builds[] | select(.name == $role)] | last' "$needs")
+  # Select by custom_data.role: Packer 1.16 names the build after the source label (hashicorp/packer#12482).
+  # select(.) keeps jq -e failing when nothing matches; .name = $role is what terraform's readers select.
+  entry=$(jq -ce --arg role "$role" '.[$role].outputs.manifest | fromjson
+    | [.builds[] | select(.custom_data.role == $role)] | last | select(.) | .name = $role' "$needs")
   # k3s stays at builds[0] for terraform's readers until they select by name.
   merged=$(jq --argjson new "$entry" \
     '.builds = ([.builds[] | select(.name != $new.name)] + [$new] | sort_by(.name != "k3s"))
