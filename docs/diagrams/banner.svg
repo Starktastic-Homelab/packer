@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1100" height="250" viewBox="0 0 1100 250" role="img" aria-labelledby="t d">
   <title id="t">packer · Starktastic Homelab</title>
-  <desc id="d">A Debian 13 golden image for Proxmox, rebuilt and released on every push to main.</desc>
+  <desc id="d">Three Debian 13 golden images for Proxmox, rebuilt and released on every push to main: templates 900 (base), 901 (k3s) and 902 (storage).</desc>
   <defs>
     <radialGradient id="ga"><stop offset="0" stop-color="#3B82F6" stop-opacity=".55"/><stop offset="1" stop-color="#3B82F6" stop-opacity="0"/></radialGradient>
     <radialGradient id="gb"><stop offset="0" stop-color="#6366F1" stop-opacity=".45"/><stop offset="1" stop-color="#6366F1" stop-opacity="0"/></radialGradient>
@@ -62,16 +62,16 @@
   <g transform="translate(48 38) scale(2.2)"><rect x="1" y="1" width="46" height="46" rx="14" fill="url(#sq)"/><circle cx="24" cy="24" r="20" fill="url(#glow)"/><path d="M37.5 14.75H20.5A9.75 9.75 0 1 0 20.5 34.25A9.75 9.75 0 1 0 20.5 14.75" fill="none" stroke="url(#st)" stroke-linecap="round" stroke-linejoin="round" stroke-width="6.25"/><rect x="1.5" y="1.5" width="45" height="45" rx="13.5" fill="none" stroke="url(#rim)" stroke-width=".6"/></g>
   <text x="178" y="66" font-size="13" font-weight="700" letter-spacing="3" fill="#93C5FD">STARKTASTIC HOMELAB · STAGE 1 OF 4</text>
   <text x="176" y="116" font-size="46" font-weight="800" fill="#F5F7FF">packer</text>
-  <text x="178" y="146" font-size="17" fill="#C7D0EA">A Debian 13 golden image for Proxmox, rebuilt and released on every push to main.</text>
+  <text x="178" y="146" font-size="17" fill="#C7D0EA">Three Debian 13 golden images for Proxmox, rebuilt and released on every push to main.</text>
   <rect class="tile" x="958" y="40" width="94" height="94" rx="28.2"/><use href="#i-packer" x="976.8" y="58.8" width="56.4" height="56.4"/>
   <g font-size="14" fill="#AEB9D6">
-    <rect x="48" y="176" width="184" height="50" rx="15" fill="#FFFFFF" fill-opacity=".06" stroke="#FFFFFF" stroke-opacity=".16"/>
-    <text x="68" y="209" font-size="23" font-weight="800" fill="#F5F7FF">900</text><text x="123" y="207">template VM</text>
-    <rect x="249" y="176" width="184" height="50" rx="15" fill="#FFFFFF" fill-opacity=".06" stroke="#FFFFFF" stroke-opacity=".16"/>
-    <text x="269" y="209" font-size="23" font-weight="800" fill="#F5F7FF">13</text><text x="309" y="207">Debian release</text>
-    <rect x="450" y="176" width="184" height="50" rx="15" fill="#FFFFFF" fill-opacity=".06" stroke="#FFFFFF" stroke-opacity=".16"/>
-    <text x="470" y="209" font-size="23" font-weight="800" fill="#F5F7FF">3</text><text x="495" y="207">driver checks</text>
-    <rect x="651" y="176" width="184" height="50" rx="15" fill="#FFFFFF" fill-opacity=".06" stroke="#FFFFFF" stroke-opacity=".16"/>
-    <text x="671" y="209" font-size="23" font-weight="800" fill="#F5F7FF">5</text><text x="696" y="207">workflows</text>
+    <rect x="48" y="176" width="214" height="50" rx="15" fill="#FFFFFF" fill-opacity=".06" stroke="#FFFFFF" stroke-opacity=".16"/>
+    <text x="68" y="209" font-size="23" font-weight="800" fill="#F5F7FF">3</text><text x="93" y="207">templates, 900-902</text>
+    <rect x="279" y="176" width="184" height="50" rx="15" fill="#FFFFFF" fill-opacity=".06" stroke="#FFFFFF" stroke-opacity=".16"/>
+    <text x="299" y="209" font-size="23" font-weight="800" fill="#F5F7FF">13</text><text x="339" y="207">Debian release</text>
+    <rect x="480" y="176" width="184" height="50" rx="15" fill="#FFFFFF" fill-opacity=".06" stroke="#FFFFFF" stroke-opacity=".16"/>
+    <text x="500" y="209" font-size="23" font-weight="800" fill="#F5F7FF">3</text><text x="525" y="207">driver checks</text>
+    <rect x="681" y="176" width="184" height="50" rx="15" fill="#FFFFFF" fill-opacity=".06" stroke="#FFFFFF" stroke-opacity=".16"/>
+    <text x="701" y="209" font-size="23" font-weight="800" fill="#F5F7FF">5</text><text x="726" y="207">workflows</text>
   </g>
 </svg>

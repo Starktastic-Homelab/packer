@@ -11,5 +11,5 @@ i915_sriov_version = "2025.12.10.2"
 
 # Kernel series this image is expected to boot. Single source of truth for the
 # guest side: CI validates it against the release above using upstream release
-# metadata, and bootstrap.sh re-checks the kernel the image actually has.
+# metadata, and k3s.sh re-checks the kernel the image actually has.
 i915_sriov_kernel_series = "6.12"

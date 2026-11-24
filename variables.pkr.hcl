@@ -21,8 +21,20 @@ variable "insecure_skip_tls_verify" {
   default     = false
 }
 
-variable "vm_id" {
+variable "base_vm_id" {
   default = 900
+}
+
+variable "k3s_vm_id" {
+  default = 901
+}
+
+variable "storage_vm_id" {
+  default = 902
+}
+
+variable "vm_name_prefix" {
+  default = "packer"
 }
 
 variable "iso_base_url" {

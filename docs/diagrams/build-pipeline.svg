@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="836" viewBox="0 0 1100 836" role="img" aria-labelledby="t d">
-  <title id="t">Build pipeline: from the Debian installer to a pull request in terraform</title>
-  <desc id="d">The packer-build job of build.yml runs packer build on the self-hosted runner. Five steps follow each other: the proxmox-iso.debian-13 source boots the Debian 13 netinst ISO in a new VM on Proxmox; http/preseed.cfg.tmpl, served over HTTP on port 8000, installs Debian unattended; scripts/bootstrap.sh upgrades the system and runs a kernel-series gate, the DKMS driver install, a DKMS status gate, the move to netplan, the GRUB command line and a machine-id reset; the cloud-init directory is copied to /etc/cloud; scripts/delete_builder_user.sh removes the builder user. The result is template VM 900. The manifest post-processor writes packer-manifest.json, which two parallel jobs consume: create-release publishes a GitHub release, and push-manifest opens the pull request packer-build-run in terraform, which a person merges.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="1180" viewBox="0 0 1100 1180" role="img" aria-labelledby="t d">
+  <title id="t">Build pipeline: three templates and one manifest pull request in terraform</title>
+  <desc id="d">build.yml runs three packer build jobs on the self-hosted runner. The base job comes first, in five steps: the proxmox-iso.base source boots the Debian 13 netinst ISO in VM 900 on Proxmox; http/preseed.cfg.tmpl, served over HTTP on port 8000, installs Debian unattended; scripts/base.sh upgrades the system, installs cloud-init and moves to netplan; the cloud-init directory is copied to /etc/cloud; scripts/seal.sh resets the identity and removes the builder user. The result is template 900 (base). The k3s and storage jobs then run in parallel, each cloning template 900 with proxmox-clone. The k3s job clones it into VM 901 and runs scripts/k3s.sh: a kernel-series gate, the DKMS driver install, a DKMS status gate, the GRUB command line and the ModemManager purge, then scripts/seal.sh, giving template 901 (k3s). The storage job clones it into VM 902 and runs scripts/storage.sh: targetcli-fb, LVM with stock activation off, nftables and the node exporter, then scripts/seal.sh, giving template 902 (storage). Each manifest post-processor writes packer-manifest.json. After k3s, create-release publishes a GitHub release. After k3s and storage, push-manifest opens one pull request packer-build-run in terraform with every built template's entry, k3s and storage, merged by name by scripts/merge-manifest.sh; a failed build keeps its old entry. A person merges the pull request.</desc>
   <defs>
     <radialGradient id="ga"><stop offset="0" stop-color="#3B82F6" stop-opacity=".55"/><stop offset="1" stop-color="#3B82F6" stop-opacity="0"/></radialGradient>
     <radialGradient id="gb"><stop offset="0" stop-color="#6366F1" stop-opacity=".45"/><stop offset="1" stop-color="#6366F1" stop-opacity="0"/></radialGradient>
@@ -12,7 +12,7 @@
     <radialGradient id="glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#3B82F6" stop-opacity=".5"/><stop offset="1" stop-color="#3B82F6" stop-opacity="0"/></radialGradient>
     <linearGradient id="st" gradientUnits="userSpaceOnUse" x1="12" y1="8" x2="36" y2="42"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".35" stop-color="#93C5FD"/><stop offset=".75" stop-color="#3B82F6"/><stop offset="1" stop-color="#22D3EE"/></linearGradient>
     <linearGradient id="wm" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="182" y2="0"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".55" stop-color="#93C5FD"/><stop offset="1" stop-color="#67E8F9"/></linearGradient>
-    <clipPath id="clip"><rect width="1100" height="836" rx="28"/></clipPath>
+    <clipPath id="clip"><rect width="1100" height="1180" rx="28"/></clipPath>
     <symbol id="i-terraform" viewBox="0 0 128 128"><g fill-rule="evenodd"><path d="M77.941 44.5v36.836L46.324 62.918V26.082zm0 0" fill="#5c4ee5"/><path d="M81.41 81.336l31.633-18.418V26.082L81.41 44.5zm0 0" fill="#4040b2"/><path d="M11.242 42.36L42.86 60.776V23.941L11.242 5.523zm0 0M77.941 85.375L46.324 66.957v36.82l31.617 18.418zm0 0" fill="#5c4ee5"/></g></symbol>
   </defs>
   <style>
@@ -96,10 +96,10 @@
       .heret { fill: #1E3A8A; }
     }
   </style>
-  <g clip-path="url(#clip)"><rect class="panel" width="1100" height="836"/><g class="blob"><ellipse cx="957" cy="58.52" rx="429" ry="418" fill="url(#ga)"/><ellipse cx="110" cy="810.92" rx="429" ry="418" fill="url(#gb)"/><ellipse cx="759" cy="894.52" rx="385" ry="334.4" fill="url(#gc)"/></g></g>
+  <g clip-path="url(#clip)"><rect class="panel" width="1100" height="1180"/><g class="blob"><ellipse cx="957" cy="82.6" rx="429" ry="590" fill="url(#ga)"/><ellipse cx="110" cy="1144.6" rx="429" ry="590" fill="url(#gb)"/><ellipse cx="759" cy="1262.6" rx="385" ry="472" fill="url(#gc)"/></g></g>
 
   <text class="acc" x="40" y="52" font-size="14" font-weight="700" letter-spacing="3">BUILD PIPELINE</text>
-  <text class="t1" x="40" y="86" font-size="26" font-weight="800">Bake the template, ship the manifest</text>
+  <text class="t1" x="40" y="86" font-size="26" font-weight="800">Bake three templates, ship one manifest</text>
   <g class="t2" font-size="13.5">
     <path class="edge" d="M700 48H744"/><path class="flow" d="M700 48H744"/>
     <text x="754" y="52.5">next step</text>
@@ -109,87 +109,143 @@
     <text x="864" y="52.5">uses the self-hosted runner</text>
   </g>
 
-  <!-- job 1: packer-build -->
-  <rect class="lane" x="30" y="112" width="1040" height="510" rx="20"/><rect class="rim" x="30.5" y="112.5" width="1039" height="509" rx="19.5"/>
-  <rect class="wf" x="46" y="126" width="150" height="28" rx="8"/><text class="wft mono" x="56" y="144.55" font-size="13">packer-build</text><circle class="dot" cx="184" cy="140" r="3.5"/>
-  <text class="t2" x="210" y="144.5" font-size="13.5">first job of <tspan class="t1 mono" font-size="13">build.yml</tspan>, runs <tspan class="t1 mono" font-size="13">packer build -force</tspan> in the <tspan class="t1 mono" font-size="13">hashicorp/packer:light</tspan> container</text>
+  <!-- job 1: base -->
+  <rect class="lane" x="30" y="112" width="1040" height="384" rx="20"/><rect class="rim" x="30.5" y="112.5" width="1039" height="383" rx="19.5"/>
+  <rect class="wf" x="46" y="126" width="80" height="28" rx="8"/><text class="wft mono" x="56" y="144.55" font-size="13">base</text><circle class="dot" cx="114" cy="140" r="3.5"/>
+  <text class="t2" x="140" y="144.5" font-size="13.5">first job of <tspan class="t1 mono" font-size="13">build.yml</tspan>, runs <tspan class="t1 mono" font-size="13">packer build -force -only='proxmox-iso.base'</tspan> in <tspan class="t1 mono" font-size="13">hashicorp/packer:light</tspan></text>
   <path class="rule" d="M46 168H1054"/>
 
-  <!-- spine -->
-  <path class="edge" d="M62 214V254M62 278V318M62 342V440M62 464V504M62 528V558"/><path class="flow" d="M62 214V254M62 278V318M62 342V440M62 464V504M62 528V558"/><path class="head" d="M62 568l-5.5 -10h11.0z"/>
+  <path class="edge" d="M62 214V242M62 266V294M62 318V346M62 370V398M62 422V436"/><path class="flow" d="M62 214V242M62 266V294M62 318V346M62 370V398M62 422V436"/><path class="head" d="M62 446l-5.5 -10h11.0z"/>
   <circle class="badge" cx="62" cy="202" r="12"/><text class="badget" x="62" y="206.5" font-size="13" font-weight="800" text-anchor="middle">1</text>
-  <circle class="badge" cx="62" cy="266" r="12"/><text class="badget" x="62" y="270.5" font-size="13" font-weight="800" text-anchor="middle">2</text>
-  <circle class="badge" cx="62" cy="330" r="12"/><text class="badget" x="62" y="334.5" font-size="13" font-weight="800" text-anchor="middle">3</text>
-  <circle class="badge" cx="62" cy="452" r="12"/><text class="badget" x="62" y="456.5" font-size="13" font-weight="800" text-anchor="middle">4</text>
-  <circle class="badge" cx="62" cy="516" r="12"/><text class="badget" x="62" y="520.5" font-size="13" font-weight="800" text-anchor="middle">5</text>
+  <circle class="badge" cx="62" cy="254" r="12"/><text class="badget" x="62" y="258.5" font-size="13" font-weight="800" text-anchor="middle">2</text>
+  <circle class="badge" cx="62" cy="306" r="12"/><text class="badget" x="62" y="310.5" font-size="13" font-weight="800" text-anchor="middle">3</text>
+  <circle class="badge" cx="62" cy="358" r="12"/><text class="badget" x="62" y="362.5" font-size="13" font-weight="800" text-anchor="middle">4</text>
+  <circle class="badge" cx="62" cy="410" r="12"/><text class="badget" x="62" y="414.5" font-size="13" font-weight="800" text-anchor="middle">5</text>
 
-  <rect class="wf" x="86" y="188" width="262" height="28" rx="8"/><text class="wft mono" x="96" y="206.55" font-size="13">proxmox-iso.debian-13</text>
-  <rect class="wf" x="86" y="252" width="262" height="28" rx="8"/><text class="wft mono" x="96" y="270.55" font-size="13">http/preseed.cfg.tmpl</text>
-  <rect class="wf" x="86" y="316" width="262" height="28" rx="8"/><text class="wft mono" x="96" y="334.55" font-size="13">scripts/bootstrap.sh</text>
-  <rect class="wf" x="86" y="438" width="262" height="28" rx="8"/><text class="wft mono" x="96" y="456.55" font-size="13">cloud-init/</text>
-  <rect class="wf" x="86" y="502" width="262" height="28" rx="8"/><text class="wft mono" x="96" y="520.55" font-size="13">scripts/delete_builder_user.sh</text>
+  <rect class="wf" x="86" y="188" width="262" height="28" rx="8"/><text class="wft mono" x="96" y="206.55" font-size="13">proxmox-iso.base</text>
+  <rect class="wf" x="86" y="240" width="262" height="28" rx="8"/><text class="wft mono" x="96" y="258.55" font-size="13">http/preseed.cfg.tmpl</text>
+  <rect class="wf" x="86" y="292" width="262" height="28" rx="8"/><text class="wft mono" x="96" y="310.55" font-size="13">scripts/base.sh</text>
+  <rect class="wf" x="86" y="344" width="262" height="28" rx="8"/><text class="wft mono" x="96" y="362.55" font-size="13">cloud-init/</text>
+  <rect class="wf" x="86" y="396" width="262" height="28" rx="8"/><text class="wft mono" x="96" y="414.55" font-size="13">scripts/seal.sh</text>
 
   <g class="t1" font-size="15" font-weight="700">
-    <text x="366" y="198">Boot the installer in a new VM on Proxmox</text>
-    <text x="366" y="262">Install Debian unattended</text>
-    <text x="366" y="335">Upgrade, install the guest GPU driver, reset the identity</text>
-    <text x="366" y="448">Add the cloud-init configuration</text>
-    <text x="366" y="512">Remove the builder user</text>
+    <text x="366" y="198">Boot the installer in VM 900 on Proxmox</text>
+    <text x="366" y="250">Install Debian unattended</text>
+    <text x="366" y="302">Upgrade, add cloud-init, switch to netplan</text>
+    <text x="366" y="354">Add the cloud-init configuration</text>
+    <text x="366" y="406">Seal the template</text>
   </g>
   <g class="t2" font-size="13">
     <text x="366" y="217">Debian 13 netinst ISO, checksum from Debian's SHA256SUMS; q35, virtio disk and NIC</text>
-    <text x="366" y="281">answers served over HTTP on port 8000; root login off, a temporary builder user for SSH</text>
-    <text x="366" y="467">copied to /etc/cloud: NoCloud and ConfigDrive datasources, root login disabled</text>
-    <text x="366" y="531">deletes the account Packer logged in with, and its sudoers file</text>
+    <text x="366" y="269">answers served over HTTP on port 8000; root login off, a temporary builder user for SSH</text>
+    <text x="366" y="321">netplan with systemd-networkd replaces ifupdown; no GPU stack and no compiler</text>
+    <text x="366" y="373">copied to /etc/cloud: NoCloud and ConfigDrive datasources, root login disabled</text>
+    <text x="366" y="425">resets the machine ID and cloud-init state, deletes the builder user and its sudoers file</text>
   </g>
 
-  <!-- inside bootstrap.sh -->
-  <path class="wire" d="M100 346V370Q100 376 106 376H110"/><path class="wirehead" d="M119 376l-8 -4.5v9.0z"/>
-  <rect class="chip" x="120" y="363" width="150" height="26" rx="13"/><text class="chipt" x="195" y="380.68" font-size="13" text-anchor="middle">kernel-series gate</text>
-  <path class="wire" d="M272 376H288"/><path class="wirehead" d="M297 376l-8 -4.5v9.0z"/>
-  <rect class="tag" x="298" y="363" width="112" height="26" rx="13"/><text class="tagt" x="354" y="380.68" font-size="13" text-anchor="middle">DKMS install</text>
-  <path class="wire" d="M412 376H428"/><path class="wirehead" d="M437 376l-8 -4.5v9.0z"/>
-  <rect class="chip" x="438" y="363" width="140" height="26" rx="13"/><text class="chipt" x="508" y="380.68" font-size="13" text-anchor="middle">DKMS status gate</text>
-  <path class="wire" d="M580 376H596"/><path class="wirehead" d="M605 376l-8 -4.5v9.0z"/>
-  <rect class="tag" x="606" y="363" width="82" height="26" rx="13"/><text class="tagt" x="647" y="380.68" font-size="13" text-anchor="middle">netplan</text>
-  <path class="wire" d="M690 376H706"/><path class="wirehead" d="M715 376l-8 -4.5v9.0z"/>
-  <rect class="tag" x="716" y="363" width="120" height="26" rx="13"/><text class="tagt" x="776" y="380.68" font-size="13" text-anchor="middle">GRUB cmdline</text>
-  <path class="wire" d="M838 376H854"/><path class="wirehead" d="M863 376l-8 -4.5v9.0z"/>
-  <rect class="tag" x="864" y="363" width="140" height="26" rx="13"/><text class="tagt" x="934" y="380.68" font-size="13" text-anchor="middle">machine-id reset</text>
-  <text class="t3" x="120" y="408" font-size="12.5">A kernel outside the pinned series, or a driver that DKMS did not install for the boot kernel, fails the build.</text>
+  <rect class="chip" x="46" y="446" width="200" height="34" rx="10"/><text class="chipt" x="146" y="468.04" font-size="14" font-weight="700" text-anchor="middle">Template 900 (base)</text>
+  <text class="t2" x="262" y="467.5" font-size="13">both clone jobs start from it</text>
 
-  <!-- result -->
-  <rect class="chip" x="46" y="569" width="170" height="34" rx="10"/><text class="chipt" x="131" y="591.04" font-size="14" font-weight="700" text-anchor="middle">Template VM 900</text>
-  <path class="edge" d="M218 586H288"/><path class="flow" d="M218 586H288"/><path class="head" d="M297 586l-10 -5.5v11.0z"/>
-  <rect class="wf" x="298" y="572" width="222" height="28" rx="8"/><text class="wft mono" x="308" y="590.55" font-size="13">post-processor "manifest"</text>
-  <text class="t2" x="534" y="590.5" font-size="13">records vm_name, git_tag, the i915 release and its kernel series</text>
+  <!-- fan-out to the two clone jobs -->
+  <path class="edge" d="M146 480V530"/><path class="flow" d="M146 480V530"/><path class="head" d="M146 540l-5.5 -10h11.0z"/>
+  <path class="edge" d="M146 512H780Q786 512 786 518V530"/><path class="flow" d="M146 512H780Q786 512 786 518V530"/><path class="head" d="M786 540l-5.5 -10h11.0z"/>
+  <rect class="tag" x="391" y="500" width="150" height="24" rx="12"/><text class="tagt mono" x="466" y="516.68" font-size="13" text-anchor="middle">proxmox-clone</text>
 
-  <!-- fan-out -->
-  <path class="edge" d="M409 602V662Q409 668 403 668H127Q121 668 121 674V680"/><path class="flow" d="M409 602V662Q409 668 403 668H127Q121 668 121 674V680"/><path class="head" d="M121 689l-5.5 -10h11.0z"/>
-  <path class="edge" d="M409 668H511Q517 668 517 674V680"/><path class="flow" d="M409 668H511Q517 668 517 674V680"/><path class="head" d="M517 689l-5.5 -10h11.0z"/>
-  <rect class="pill" x="309" y="628" width="200" height="28" rx="14"/><text class="pillt mono" x="409" y="646.86" font-size="13.5" text-anchor="middle">packer-manifest.json</text>
+  <!-- job 2: k3s -->
+  <rect class="lane" x="30" y="540" width="500" height="394" rx="20"/><rect class="rim" x="30.5" y="540.5" width="499" height="393" rx="19.5"/>
+  <rect class="wf" x="46" y="554" width="76" height="28" rx="8"/><text class="wft mono" x="56" y="572.55" font-size="13">k3s</text><circle class="dot" cx="110" cy="568" r="3.5"/>
+  <text class="t2" x="136" y="572.5" font-size="13.5">needs base; <tspan class="t1 mono" font-size="13">-only='proxmox-clone.k3s'</tspan></text>
+  <path class="rule" d="M46 596H514"/>
 
-  <rect class="card" x="30" y="690" width="356" height="96" rx="20"/><rect class="rim" x="30.5" y="690.5" width="355" height="95" rx="19.5"/>
-  <rect class="wf" x="46" y="706" width="150" height="28" rx="8"/><text class="wft mono" x="56" y="724.55" font-size="13">create-release</text>
-  <path class="edge" d="M198 720H218"/><path class="flow" d="M198 720H218"/><path class="head" d="M227 720l-10 -5.5v11.0z"/>
-  <rect class="chip" x="228" y="703" width="142" height="34" rx="10"/><text class="chipt" x="299" y="725.04" font-size="14" font-weight="700" text-anchor="middle">GitHub release</text>
-  <g class="t2" font-size="12.5">
-    <text x="46" y="758">tagged with git_tag and marked latest,</text>
-    <text x="46" y="775">with the manifest attached</text>
+  <path class="edge" d="M62 642V670M62 694V828"/><path class="flow" d="M62 642V670M62 694V828"/><path class="head" d="M62 838l-5.5 -10h11.0z"/>
+  <circle class="badge" cx="62" cy="630" r="12"/><text class="badget" x="62" y="634.5" font-size="13" font-weight="800" text-anchor="middle">6</text>
+  <circle class="badge" cx="62" cy="682" r="12"/><text class="badget" x="62" y="686.5" font-size="13" font-weight="800" text-anchor="middle">7</text>
+  <circle class="badge" cx="62" cy="850" r="12"/><text class="badget" x="62" y="854.5" font-size="13" font-weight="800" text-anchor="middle">8</text>
+  <rect class="wf" x="86" y="616" width="170" height="28" rx="8"/><text class="wft mono" x="96" y="634.55" font-size="13">source-clone.pkr.hcl</text>
+  <rect class="wf" x="86" y="668" width="170" height="28" rx="8"/><text class="wft mono" x="96" y="686.55" font-size="13">scripts/k3s.sh</text>
+  <rect class="wf" x="86" y="836" width="170" height="28" rx="8"/><text class="wft mono" x="96" y="854.55" font-size="13">scripts/seal.sh</text>
+  <g class="t1" font-size="15" font-weight="700">
+    <text x="270" y="635">Clone 900 into VM 901</text>
+    <text x="270" y="687">Install the GPU driver</text>
+    <text x="270" y="855">Seal the template</text>
   </g>
 
-  <rect class="card" x="422" y="690" width="648" height="96" rx="20"/><rect class="rim" x="422.5" y="690.5" width="647" height="95" rx="19.5"/>
-  <rect class="wf" x="438" y="706" width="158" height="28" rx="8"/><text class="wft mono" x="448" y="724.55" font-size="13">push-manifest</text>
-  <path class="edge" d="M598 720H622"/><path class="flow" d="M598 720H622"/><path class="head" d="M631 720l-10 -5.5v11.0z"/>
-  <rect class="tile" x="632" y="700" width="40" height="40" rx="12"/><use href="#i-terraform" x="640" y="708" width="24" height="24"/>
-  <text class="t1 mono" x="682" y="717" font-size="14">packer-build-&lt;run&gt;</text>
-  <text class="t2" x="682" y="734" font-size="12.5">pull request in terraform</text>
-  <path class="gate" d="M842 720H876"/>
-  <rect class="hum" x="878" y="706" width="168" height="28" rx="14"/><text class="humt" x="962" y="724.68" font-size="13" text-anchor="middle">a person merges it</text>
-  <g class="t2" font-size="12.5">
-    <text x="438" y="758">commits packer-manifest.json to a new branch in Starktastic-Homelab/terraform;</text>
-    <text x="438" y="775">nothing downstream runs until the pull request is merged</text>
+  <path class="wire" d="M100 696V750Q100 756 106 756H110"/><path class="wirehead" d="M119 756l-8 -4.5v9.0z"/>
+  <path class="wire" d="M100 722H110"/><path class="wirehead" d="M119 722l-8 -4.5v9.0z"/>
+  <rect class="chip" x="120" y="709" width="110" height="26" rx="13"/><text class="chipt" x="175" y="726.68" font-size="13" text-anchor="middle">series gate</text>
+  <path class="wire" d="M232 722H243"/><path class="wirehead" d="M252 722l-8 -4.5v9.0z"/>
+  <rect class="tag" x="252" y="709" width="112" height="26" rx="13"/><text class="tagt" x="308" y="726.68" font-size="13" text-anchor="middle">DKMS install</text>
+  <path class="wire" d="M366 722H377"/><path class="wirehead" d="M386 722l-8 -4.5v9.0z"/>
+  <rect class="chip" x="386" y="709" width="96" height="26" rx="13"/><text class="chipt" x="434" y="726.68" font-size="13" text-anchor="middle">DKMS gate</text>
+  <rect class="tag" x="120" y="743" width="120" height="26" rx="13"/><text class="tagt" x="180" y="760.68" font-size="13" text-anchor="middle">GRUB cmdline</text>
+  <rect class="tag" x="252" y="743" width="164" height="26" rx="13"/><text class="tagt" x="334" y="760.68" font-size="13" text-anchor="middle">ModemManager purge</text>
+  <g class="t3" font-size="12.5">
+    <text x="86" y="792">A kernel outside the pinned series, or a driver that DKMS</text>
+    <text x="86" y="809">did not install for the boot kernel, fails the build.</text>
   </g>
 
-  <text class="t3" x="40" y="814" font-size="12.5">Only packer-build uses the self-hosted runner. create-release and push-manifest run in parallel once it finishes.</text>
+  <rect class="chip" x="46" y="884" width="200" height="34" rx="10"/><text class="chipt" x="146" y="906.04" font-size="14" font-weight="700" text-anchor="middle">Template 901 (k3s)</text>
+  <path class="edge" d="M62 862V874"/><path class="flow" d="M62 862V874"/><path class="head" d="M62 884l-5.5 -10h11.0z"/>
+  <path class="edge" d="M248 901H268"/><path class="flow" d="M248 901H268"/><path class="head" d="M277 901l-10 -5.5v11.0z"/>
+  <rect class="wf" x="278" y="887" width="222" height="28" rx="8"/><text class="wft mono" x="288" y="905.55" font-size="13">post-processor "manifest"</text>
+
+  <!-- job 3: storage -->
+  <rect class="lane" x="570" y="540" width="500" height="394" rx="20"/><rect class="rim" x="570.5" y="540.5" width="499" height="393" rx="19.5"/>
+  <rect class="wf" x="586" y="554" width="106" height="28" rx="8"/><text class="wft mono" x="596" y="572.55" font-size="13">storage</text><circle class="dot" cx="680" cy="568" r="3.5"/>
+  <text class="t2" x="706" y="572.5" font-size="13.5">needs base; <tspan class="t1 mono" font-size="13">-only='proxmox-clone.storage'</tspan></text>
+  <path class="rule" d="M586 596H1054"/>
+
+  <path class="edge" d="M602 642V670M602 694V828"/><path class="flow" d="M602 642V670M602 694V828"/><path class="head" d="M602 838l-5.5 -10h11.0z"/>
+  <circle class="badge" cx="602" cy="630" r="12"/><text class="badget" x="602" y="634.5" font-size="13" font-weight="800" text-anchor="middle">9</text>
+  <circle class="badge" cx="602" cy="682" r="12"/><text class="badget" x="602" y="686.5" font-size="13" font-weight="800" text-anchor="middle">10</text>
+  <circle class="badge" cx="602" cy="850" r="12"/><text class="badget" x="602" y="854.5" font-size="13" font-weight="800" text-anchor="middle">11</text>
+  <rect class="wf" x="626" y="616" width="200" height="28" rx="8"/><text class="wft mono" x="636" y="634.55" font-size="13">source-clone.pkr.hcl</text>
+  <rect class="wf" x="626" y="668" width="200" height="28" rx="8"/><text class="wft mono" x="636" y="686.55" font-size="13">scripts/storage.sh</text>
+  <rect class="wf" x="626" y="836" width="200" height="28" rx="8"/><text class="wft mono" x="636" y="854.55" font-size="13">scripts/seal.sh</text>
+  <g class="t1" font-size="15" font-weight="700">
+    <text x="840" y="635">Clone 900 into VM 902</text>
+    <text x="840" y="687">Install the target</text>
+    <text x="840" y="855">Seal the template</text>
+  </g>
+
+  <path class="wire" d="M640 696V750Q640 756 646 756H650"/><path class="wirehead" d="M659 756l-8 -4.5v9.0z"/>
+  <path class="wire" d="M640 722H650"/><path class="wirehead" d="M659 722l-8 -4.5v9.0z"/>
+  <rect class="tag" x="660" y="709" width="116" height="26" rx="13"/><text class="tagt" x="718" y="726.68" font-size="13" text-anchor="middle">targetcli-fb</text>
+  <rect class="tag" x="784" y="709" width="170" height="26" rx="13"/><text class="tagt" x="869" y="726.68" font-size="13" text-anchor="middle">LVM, activation off</text>
+  <rect class="tag" x="660" y="743" width="90" height="26" rx="13"/><text class="tagt" x="705" y="760.68" font-size="13" text-anchor="middle">nftables</text>
+  <rect class="tag" x="762" y="743" width="130" height="26" rx="13"/><text class="tagt" x="827" y="760.68" font-size="13" text-anchor="middle">node exporter</text>
+  <g class="t3" font-size="12.5">
+    <text x="626" y="792">Stock LVM activation is off in the system and every initramfs;</text>
+    <text x="626" y="809">a compiler in the image fails the build.</text>
+  </g>
+
+  <rect class="chip" x="586" y="884" width="200" height="34" rx="10"/><text class="chipt" x="686" y="906.04" font-size="14" font-weight="700" text-anchor="middle">Template 902 (storage)</text>
+  <path class="edge" d="M602 862V874"/><path class="flow" d="M602 862V874"/><path class="head" d="M602 884l-5.5 -10h11.0z"/>
+  <path class="edge" d="M788 901H804"/><path class="flow" d="M788 901H804"/><path class="head" d="M813 901l-10 -5.5v11.0z"/>
+  <rect class="wf" x="814" y="887" width="222" height="28" rx="8"/><text class="wft mono" x="824" y="905.55" font-size="13">post-processor "manifest"</text>
+
+  <!-- manifests to terraform -->
+  <path class="edge" d="M389 915V974"/><path class="flow" d="M389 915V974"/><path class="head" d="M389 984l-5.5 -10h11.0z"/>
+  <path class="edge" d="M925 915V974"/><path class="flow" d="M925 915V974"/><path class="head" d="M925 984l-5.5 -10h11.0z"/>
+  <rect class="pill" x="289" y="936" width="200" height="28" rx="14"/><text class="pillt mono" x="389" y="954.86" font-size="13.5" text-anchor="middle">packer-manifest.json</text>
+
+  <rect class="card" x="30" y="984" width="500" height="126" rx="20"/><rect class="rim" x="30.5" y="984.5" width="499" height="125" rx="19.5"/>
+  <rect class="wf" x="46" y="1000" width="150" height="28" rx="8"/><text class="wft mono" x="56" y="1018.55" font-size="13">create-release</text>
+  <path class="edge" d="M198 1014H214"/><path class="flow" d="M198 1014H214"/><path class="head" d="M223 1014l-10 -5.5v11.0z"/>
+  <rect class="chip" x="224" y="997" width="144" height="34" rx="10"/><text class="chipt" x="296" y="1019.04" font-size="14" font-weight="700" text-anchor="middle">GitHub release</text>
+  <rect class="wf" x="46" y="1044" width="150" height="28" rx="8"/><text class="wft mono" x="56" y="1062.55" font-size="13">push-manifest</text>
+  <path class="edge" d="M198 1058H214"/><path class="flow" d="M198 1058H214"/><path class="head" d="M223 1058l-10 -5.5v11.0z"/>
+  <rect class="tile" x="224" y="1040" width="36" height="36" rx="10.8"/><use href="#i-terraform" x="231.2" y="1047.2" width="21.6" height="21.6"/>
+  <text class="t1 mono" x="270" y="1063" font-size="14">packer-build-&lt;run&gt;</text>
+  <text class="t2" x="46" y="1094" font-size="12.5">the k3s and storage entries, merged by name; k3s at builds[0]</text>
+
+  <rect class="card" x="570" y="984" width="500" height="126" rx="20"/><rect class="rim" x="570.5" y="984.5" width="499" height="125" rx="19.5"/>
+  <text class="t1" x="586" y="1022" font-size="14" font-weight="700">One manifest pull request</text>
+  <text class="t2" x="586" y="1052" font-size="12.5">every build that succeeded replaces its entry by name;</text>
+  <text class="t2" x="586" y="1072" font-size="12.5">a failed build keeps its old entry, others are kept</text>
+  <text class="t1 mono" x="586" y="1094" font-size="12.5">scripts/merge-manifest.sh</text>
+
+  <path class="gate" d="M40 1144H84"/>
+  <rect class="hum" x="92" y="1130" width="208" height="28" rx="14"/><text class="humt" x="196" y="1148.68" font-size="13" text-anchor="middle">a person merges it</text>
+  <text class="t3" x="314" y="1148.5" font-size="12.5">Nothing downstream runs until the pull request is merged. Only the three build jobs use the self-hosted runner.</text>
 </svg>

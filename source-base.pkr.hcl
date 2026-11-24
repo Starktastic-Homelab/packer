@@ -1,13 +1,13 @@
-source "proxmox-iso" "debian-13" {
+source "proxmox-iso" "base" {
   proxmox_url              = var.proxmox_api_url
   username                 = var.proxmox_api_token_id
   token                    = var.proxmox_api_token_secret
   node                     = var.proxmox_node
   insecure_skip_tls_verify = var.insecure_skip_tls_verify
 
-  vm_id                   = var.vm_id
-  vm_name                 = local.vm_name
-  template_description    = "Debian 13 Template - ${formatdate("YYYY-MM-DD.hh:mm:ss.ZZZ", timestamp())}"
+  vm_id                   = var.base_vm_id
+  vm_name                 = local.vm_name.base
+  template_description    = "Debian 13 base template - ${formatdate("YYYY-MM-DD.hh:mm:ss.ZZZ", timestamp())}"
   os                      = "l26"
   scsi_controller         = var.scsi_controller
   cpu_type                = var.cpu_type
